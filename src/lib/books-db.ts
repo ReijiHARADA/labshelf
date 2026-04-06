@@ -22,6 +22,13 @@ type DbBookRow = {
   memo: string | null;
 };
 
+function isMissingColorColumnError(errorMessage: string): boolean {
+  return (
+    errorMessage.includes("Could not find the 'color' column") ||
+    errorMessage.includes('column "color" does not exist')
+  );
+}
+
 function toDbRow(book: Book): DbBookRow {
   return {
     id: book.id,
@@ -108,7 +115,23 @@ export async function addCategoryToDatabase(
   const { error } = await supabase.from('categories').upsert(row, {
     onConflict: 'name',
   });
-  if (error) throw new Error(`カテゴリ保存に失敗しました: ${error.message}`);
+  if (!error) return;
+
+  if (row.color !== undefined && isMissingColorColumnError(error.message)) {
+    const { error: retryError } = await supabase
+      .from('categories')
+      .upsert(
+        {
+          name: category,
+          created_at: new Date().toISOString(),
+        },
+        { onConflict: 'name' }
+      );
+    if (!retryError) return;
+    throw new Error(`カテゴリ保存に失敗しました: ${retryError.message}`);
+  }
+
+  throw new Error(`カテゴリ保存に失敗しました: ${error.message}`);
 }
 
 export async function loadCategoryColorsFromDatabase(): Promise<
@@ -121,7 +144,12 @@ export async function loadCategoryColorsFromDatabase(): Promise<
     .from('categories')
     .select('name, color')
     .order('name');
-  if (error) throw new Error(`カテゴリ色の読込に失敗しました: ${error.message}`);
+  if (error) {
+    if (isMissingColorColumnError(error.message)) {
+      return {};
+    }
+    throw new Error(`カテゴリ色の読込に失敗しました: ${error.message}`);
+  }
 
   const out: Record<string, string> = {};
   for (const row of data ?? []) {
@@ -148,7 +176,14 @@ export async function updateCategoryColorInDatabase(
     },
     { onConflict: 'name' }
   );
-  if (error) throw new Error(`カテゴリ色の保存に失敗しました: ${error.message}`);
+  if (error) {
+    if (isMissingColorColumnError(error.message)) {
+      throw new Error(
+        'カテゴリ色を保存できません。DBにcolor列がありません。マイグレーションを適用してください。'
+      );
+    }
+    throw new Error(`カテゴリ色の保存に失敗しました: ${error.message}`);
+  }
 }
 
 export async function loadCategoriesFromDatabase(): Promise<string[]> {

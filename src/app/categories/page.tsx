@@ -16,7 +16,6 @@ import { getBooks, getAllCategories } from '@/lib/books-store';
 import { getSpineColor } from '@/lib/spine-colors';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 import { PublicCategoryAdder } from '@/components/categories/public-category-adder';
-import { CategoryColorEditor } from '@/components/categories/category-color-editor';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -117,15 +116,6 @@ export default async function CategoriesPage() {
                     )}
                   </Link>
 
-                  <div className="mt-4 pt-4 border-t border-border/50">
-                    <p className="text-xs text-muted-foreground mb-2">
-                      一覧・背表紙の色（DBに保存）
-                    </p>
-                    <CategoryColorEditor
-                      categoryName={category.name}
-                      displayColor={category.color}
-                    />
-                  </div>
                 </CardContent>
               </Card>
             );
