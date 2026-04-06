@@ -16,6 +16,9 @@ import { getBooks, getAllCategories } from '@/lib/books-store';
 import { getSpineColor } from '@/lib/spine-colors';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const categoryIcons: Record<string, React.ElementType> = {
   'プログラミング': Code,
   '機械学習': Brain,

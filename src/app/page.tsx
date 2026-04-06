@@ -8,6 +8,9 @@ import {
 } from '@/lib/books-store';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function HomePage() {
   await ensureBooksLoaded();
   const allBooks = getBooks();

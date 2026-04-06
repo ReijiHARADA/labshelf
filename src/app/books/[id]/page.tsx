@@ -20,6 +20,9 @@ import { BookCover } from '@/components/bookshelf';
 import { getBookById, getRelatedBooks } from '@/lib/books-store';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface BookDetailPageProps {
   params: Promise<{ id: string }>;
 }

@@ -11,6 +11,9 @@ import {
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 import type { SortOption } from '@/types/book';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: NextRequest) {
   await ensureBooksLoaded();
   const searchParams = request.nextUrl.searchParams;
