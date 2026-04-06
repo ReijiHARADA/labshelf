@@ -17,7 +17,7 @@ export default function BookNotFound() {
           <Button asChild>
             <Link href="/browse">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              カタログに戻る
+              一覧に戻る
             </Link>
           </Button>
           <Button variant="outline" asChild>

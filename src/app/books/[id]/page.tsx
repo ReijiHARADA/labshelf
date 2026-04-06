@@ -43,7 +43,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
         <Button variant="ghost" size="sm" asChild className="mb-6">
           <Link href="/browse">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            カタログに戻る
+            一覧に戻る
           </Link>
         </Button>
 

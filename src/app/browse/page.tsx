@@ -182,7 +182,9 @@ export default function BrowsePage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-bold">カタログ</h1>
+            <h1 className="text-3xl font-bold">
+              {selectedCategory || '一覧'}
+            </h1>
             {selectedCategory && (
               <CategoryManageDialog
                 category={selectedCategory}
