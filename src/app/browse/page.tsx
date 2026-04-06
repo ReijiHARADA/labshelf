@@ -26,6 +26,11 @@ import { VirtualBookshelf, BookCover } from '@/components/bookshelf';
 import { BookDetailDrawer } from '@/components/bookshelf/book-detail-drawer';
 import { Card, CardContent } from '@/components/ui/card';
 import { CategoryManageDialog } from '@/components/categories/category-manage-dialog';
+import {
+  BookGridSkeleton,
+  BookListSkeleton,
+  BookshelfSkeleton,
+} from '@/components/ui/loading-skeleton';
 import type { Book, SortOption } from '@/types/book';
 import { cn } from '@/lib/utils';
 
@@ -78,9 +83,11 @@ export default function BrowsePage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [categoryColors, setCategoryColors] = useState<Record<string, string>>({});
   const [tags, setTags] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchBooks = async () => {
+      setLoading(true);
       try {
         const [booksRes, categoriesRes] = await Promise.all([
           fetch('/api/books?limit=1000', { cache: 'no-store' }),
@@ -104,6 +111,8 @@ export default function BrowsePage() {
         setCategories([]);
         setCategoryColors({});
         setTags([]);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -235,7 +244,7 @@ export default function BrowsePage() {
             )}
           </div>
           <p className="mt-2 text-muted-foreground">
-            {filteredBooks.length}冊の本が見つかりました
+            {loading ? '読み込み中...' : `${filteredBooks.length}冊の本が見つかりました`}
           </p>
         </div>
 
@@ -459,7 +468,22 @@ export default function BrowsePage() {
 
         {/* Results */}
         <AnimatePresence mode="wait">
-          {viewMode === 'shelf' ? (
+          {loading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {viewMode === 'shelf' ? (
+                <BookshelfSkeleton />
+              ) : viewMode === 'list' ? (
+                <BookListSkeleton count={8} />
+              ) : (
+                <BookGridSkeleton count={18} />
+              )}
+            </motion.div>
+          ) : viewMode === 'shelf' ? (
             <motion.div
               key="shelf"
               initial={{ opacity: 0 }}
@@ -545,7 +569,7 @@ export default function BrowsePage() {
         </AnimatePresence>
 
         {/* Empty state */}
-        {filteredBooks.length === 0 && (
+        {!loading && filteredBooks.length === 0 && (
           <div className="text-center py-20">
             <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
             <h3 className="text-lg font-medium mb-2">本が見つかりませんでした</h3>
