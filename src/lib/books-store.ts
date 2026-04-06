@@ -152,6 +152,67 @@ export function addCategory(category: string): { success: boolean; message: stri
   return { success: true, message: 'カテゴリを追加しました' };
 }
 
+export function renameCategoryInStore(
+  oldName: string,
+  newName: string
+): { success: boolean; message: string; changedBooks: number } {
+  const from = oldName.trim();
+  const to = newName.trim();
+  if (!from || !to) {
+    return { success: false, message: 'カテゴリ名が不正です', changedBooks: 0 };
+  }
+  if (from === to) {
+    return { success: false, message: '同じカテゴリ名には変更できません', changedBooks: 0 };
+  }
+  if (getAllCategories().includes(to)) {
+    return { success: false, message: '変更先カテゴリ名は既に存在します', changedBooks: 0 };
+  }
+
+  let changedBooks = 0;
+  cachedBooks = cachedBooks.map((book) => {
+    if (book.category !== from) return book;
+    changedBooks += 1;
+    return { ...book, category: to, updatedAt: new Date().toISOString() };
+  });
+
+  customCategories = customCategories.map((c) => (c === from ? to : c));
+  customCategories = [...new Set(customCategories)];
+
+  return { success: true, message: 'カテゴリ名を変更しました', changedBooks };
+}
+
+export function deleteCategoryInStore(
+  name: string,
+  fallbackCategory = 'その他'
+): { success: boolean; message: string; movedBooks: number } {
+  const target = name.trim();
+  if (!target) {
+    return { success: false, message: 'カテゴリ名が不正です', movedBooks: 0 };
+  }
+  if (target === fallbackCategory) {
+    return { success: false, message: 'このカテゴリは削除できません', movedBooks: 0 };
+  }
+
+  let movedBooks = 0;
+  cachedBooks = cachedBooks.map((book) => {
+    if (book.category !== target) return book;
+    movedBooks += 1;
+    return {
+      ...book,
+      category: fallbackCategory,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  customCategories = customCategories.filter((c) => c !== target);
+  if (!getAllCategories().includes(fallbackCategory)) {
+    customCategories = [...customCategories, fallbackCategory];
+  }
+  customCategories = [...new Set(customCategories)];
+
+  return { success: true, message: 'カテゴリを削除しました', movedBooks };
+}
+
 export function getAllTags(): string[] {
   const tags = cachedBooks.flatMap((book) => book.tags);
   return [...new Set(tags)];

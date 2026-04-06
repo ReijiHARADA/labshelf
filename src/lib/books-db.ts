@@ -177,3 +177,46 @@ export async function updateBookCategoryInDatabase(
 
   if (error) throw new Error(`カテゴリ更新に失敗しました: ${error.message}`);
 }
+
+export async function bulkUpdateBookCategoryInDatabase(
+  fromCategory: string,
+  toCategory: string
+): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from('books')
+    .update({
+      category: toCategory,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('category', fromCategory);
+
+  if (error) throw new Error(`カテゴリ一括更新に失敗しました: ${error.message}`);
+}
+
+export async function renameCategoryInDatabase(
+  oldName: string,
+  newName: string
+): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from('categories')
+    .update({ name: newName.trim() })
+    .eq('name', oldName.trim());
+  if (error) throw new Error(`カテゴリ名変更に失敗しました: ${error.message}`);
+}
+
+export async function deleteCategoryFromDatabase(name: string): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from('categories')
+    .delete()
+    .eq('name', name.trim());
+  if (error) throw new Error(`カテゴリ削除に失敗しました: ${error.message}`);
+}

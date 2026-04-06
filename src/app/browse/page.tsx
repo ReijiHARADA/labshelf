@@ -25,6 +25,7 @@ import {
 import { VirtualBookshelf, BookCover } from '@/components/bookshelf';
 import { BookDetailDrawer } from '@/components/bookshelf/book-detail-drawer';
 import { Card, CardContent } from '@/components/ui/card';
+import { CategoryManageDialog } from '@/components/categories/category-manage-dialog';
 import type { Book, SortOption } from '@/types/book';
 import { cn } from '@/lib/utils';
 
@@ -75,20 +76,33 @@ export default function BrowsePage() {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [allBooks, setAllBooks] = useState<Book[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [categoryColors, setCategoryColors] = useState<Record<string, string>>({});
   const [tags, setTags] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchBooks = async () => {
       try {
-        const res = await fetch('/api/books?limit=1000', { cache: 'no-store' });
-        if (!res.ok) return;
-        const data = await res.json();
+        const [booksRes, categoriesRes] = await Promise.all([
+          fetch('/api/books?limit=1000', { cache: 'no-store' }),
+          fetch('/api/categories', { cache: 'no-store' }),
+        ]);
+        if (!booksRes.ok) return;
+        const data = await booksRes.json();
         setAllBooks(Array.isArray(data.books) ? data.books : []);
         setCategories(Array.isArray(data?.meta?.categories) ? data.meta.categories : []);
         setTags(Array.isArray(data?.meta?.tags) ? data.meta.tags : []);
+        if (categoriesRes.ok) {
+          const categoryData = await categoriesRes.json();
+          setCategoryColors(
+            typeof categoryData?.colors === 'object' && categoryData.colors
+              ? categoryData.colors
+              : {}
+          );
+        }
       } catch {
         setAllBooks([]);
         setCategories([]);
+        setCategoryColors({});
         setTags([]);
       }
     };
@@ -167,7 +181,57 @@ export default function BrowsePage() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">カタログ</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-bold">カタログ</h1>
+            {selectedCategory && (
+              <CategoryManageDialog
+                category={selectedCategory}
+                categoryColor={categoryColors[selectedCategory]}
+                onRenamed={(oldName, newName) => {
+                  setAllBooks((prev) =>
+                    prev.map((book) =>
+                      book.category === oldName ? { ...book, category: newName } : book
+                    )
+                  );
+                  setCategories((prev) =>
+                    [...new Set(prev.map((c) => (c === oldName ? newName : c)))]
+                  );
+                  setCategoryColors((prev) => {
+                    const next = { ...prev };
+                    const oldColor = next[oldName];
+                    delete next[oldName];
+                    if (oldColor) next[newName] = oldColor;
+                    return next;
+                  });
+                  setSelectedCategory(newName);
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.set('category', newName);
+                  router.push(`/browse?${params.toString()}`);
+                }}
+                onDeleted={(name, fallbackCategory) => {
+                  setAllBooks((prev) =>
+                    prev.map((book) =>
+                      book.category === name
+                        ? { ...book, category: fallbackCategory }
+                        : book
+                    )
+                  );
+                  setCategories((prev) =>
+                    [...new Set(prev.filter((c) => c !== name).concat(fallbackCategory))]
+                  );
+                  setCategoryColors((prev) => {
+                    const next = { ...prev };
+                    delete next[name];
+                    return next;
+                  });
+                  setSelectedCategory(fallbackCategory);
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.set('category', fallbackCategory);
+                  router.push(`/browse?${params.toString()}`);
+                }}
+              />
+            )}
+          </div>
           <p className="mt-2 text-muted-foreground">
             {filteredBooks.length}冊の本が見つかりました
           </p>

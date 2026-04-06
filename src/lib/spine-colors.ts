@@ -38,6 +38,25 @@ export function setCategoryColorOverride(category: string, color: string): void 
   categoryColorOverrides = { ...categoryColorOverrides, [key]: color };
 }
 
+export function renameCategoryColorOverride(oldName: string, newName: string): void {
+  const from = oldName.trim();
+  const to = newName.trim();
+  if (!from || !to || from === to) return;
+  const current = categoryColorOverrides[from];
+  const next = { ...categoryColorOverrides };
+  delete next[from];
+  if (current) next[to] = current;
+  categoryColorOverrides = next;
+}
+
+export function deleteCategoryColorOverride(category: string): void {
+  const key = category.trim();
+  if (!key) return;
+  const next = { ...categoryColorOverrides };
+  delete next[key];
+  categoryColorOverrides = next;
+}
+
 export function getCategoryColorOverrides(): Record<string, string> {
   return { ...categoryColorOverrides };
 }
