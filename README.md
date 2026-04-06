@@ -1,36 +1,117 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LabShelf - 研究室蔵書管理アプリ
 
-## Getting Started
+研究室の蔵書を「見やすく・探しやすく・管理しやすく」するWebアプリケーションです。
 
-First, run the development server:
+![LabShelf](https://via.placeholder.com/800x400?text=LabShelf)
+
+## 特徴
+
+- **仮想本棚UI**: カラフルな背表紙が棚に並ぶインタラクティブな表示
+- **多角的な検索**: タイトル、著者、ISBN、タグ、カテゴリで検索
+- **レコメンド機能**: おすすめ、新着、人気、分野別のピックアップ
+- **Google スプレッドシート連携**: スプレッドシートで簡単にデータ管理
+- **Apple風デザイン**: 白基調で静かに洗練されたUI
+
+## 技術スタック
+
+- **フロントエンド**: Next.js 14 (App Router), TypeScript, Tailwind CSS
+- **UIコンポーネント**: shadcn/ui, Framer Motion
+- **データ管理**: TanStack Query
+- **データソース**: Google Sheets API
+
+## セットアップ
+
+### 1. 依存関係のインストール
+
+```bash
+npm install
+```
+
+### 2. 環境変数の設定
+
+`.env.example` をコピーして `.env.local` を作成し、必要な値を設定してください。
+
+```bash
+cp .env.example .env.local
+```
+
+### 3. Google スプレッドシートの準備
+
+以下の列を持つスプレッドシートを作成してください：
+
+| 列名 | 説明 | 必須 |
+|------|------|------|
+| id | 一意のID | ✓ |
+| isbn | ISBN番号 | |
+| title | タイトル | ✓ |
+| subtitle | サブタイトル | |
+| author | 著者 | ✓ |
+| publisher | 出版社 | |
+| publishedYear | 出版年 | |
+| category | カテゴリ | |
+| tags | タグ（カンマ区切り） | |
+| description | 概要 | |
+| toc | 目次 | |
+| coverImageUrl | 表紙画像URL | |
+| recommended | おすすめフラグ (TRUE/FALSE) | |
+| latestFlag | 新着フラグ (TRUE/FALSE) | |
+| popularityScore | 人気スコア (0-100) | |
+| createdAt | 登録日時 | |
+| updatedAt | 更新日時 | |
+| memo | メモ | |
+
+### 4. 開発サーバーの起動
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+[http://localhost:3000](http://localhost:3000) でアプリケーションにアクセスできます。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ページ構成
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| パス | 説明 |
+|------|------|
+| `/` | ホーム - 本棚UI + レコメンド |
+| `/browse` | カタログ - 検索・一覧表示 |
+| `/books/[id]` | 本の詳細ページ |
+| `/categories` | カテゴリ一覧 |
+| `/my` | マイページ - お気に入り・履歴 |
+| `/admin` | 管理画面 - 同期・設定管理 |
 
-## Learn More
+## API エンドポイント
 
-To learn more about Next.js, take a look at the following resources:
+| エンドポイント | メソッド | 説明 |
+|---------------|---------|------|
+| `/api/books` | GET | 本の一覧取得（検索・フィルター対応） |
+| `/api/books/[id]` | GET | 本の詳細取得 |
+| `/api/sync` | GET | 同期ステータス取得 |
+| `/api/sync` | POST | 手動同期実行 |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## カスタマイズ
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### カテゴリの追加
 
-## Deploy on Vercel
+`src/lib/spine-colors.ts` の `categoryColors` にカテゴリと色を追加してください。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### デザインの調整
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`src/app/globals.css` でデザイントークン（色、角丸、シャドウなど）を調整できます。
+
+## デプロイ
+
+Vercelでのデプロイを推奨します。
+
+```bash
+npm run build
+```
+
+環境変数を Vercel のダッシュボードで設定してください。
+
+## ライセンス
+
+MIT
+
+## 作者
+
+研究室蔵書管理プロジェクト
