@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Heart, BookmarkPlus, Clock, BookOpen, Trash2 } from 'lucide-react';
@@ -8,17 +8,32 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { BookCover } from '@/components/bookshelf';
-import { dummyBooks } from '@/data/dummy-books';
 import type { Book } from '@/types/book';
 
 export default function MyPage() {
   const [favorites, setFavorites] = useState<string[]>(['1', '4', '10', '17']);
   const [wantToRead, setWantToRead] = useState<string[]>(['2', '7', '23']);
   const [recentlyViewed] = useState<string[]>(['1', '2', '3', '4', '5', '6', '7', '8']);
+  const [allBooks, setAllBooks] = useState<Book[]>([]);
 
-  const favoriteBooks = dummyBooks.filter((book) => favorites.includes(book.id));
-  const wantToReadBooks = dummyBooks.filter((book) => wantToRead.includes(book.id));
-  const recentBooks = dummyBooks.filter((book) => recentlyViewed.includes(book.id));
+  useEffect(() => {
+    const fetchBooks = async () => {
+      try {
+        const response = await fetch('/api/books?limit=1000', { cache: 'no-store' });
+        if (!response.ok) return;
+        const data = await response.json();
+        setAllBooks(Array.isArray(data.books) ? data.books : []);
+      } catch {
+        setAllBooks([]);
+      }
+    };
+
+    fetchBooks();
+  }, []);
+
+  const favoriteBooks = allBooks.filter((book) => favorites.includes(book.id));
+  const wantToReadBooks = allBooks.filter((book) => wantToRead.includes(book.id));
+  const recentBooks = allBooks.filter((book) => recentlyViewed.includes(book.id));
 
   const removeFromFavorites = (bookId: string) => {
     setFavorites((prev) => prev.filter((id) => id !== bookId));

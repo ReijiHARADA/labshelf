@@ -12,7 +12,7 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { dummyBooks, getAllCategories } from '@/data/dummy-books';
+import { getBooks, getAllCategories } from '@/lib/books-store';
 import { getSpineColor } from '@/lib/spine-colors';
 
 const categoryIcons: Record<string, React.ElementType> = {
@@ -28,10 +28,11 @@ const categoryIcons: Record<string, React.ElementType> = {
 };
 
 export default function CategoriesPage() {
+  const allBooks = getBooks();
   const categories = getAllCategories();
 
   const categoryData = categories.map((category) => {
-    const books = dummyBooks.filter((book) => book.category === category);
+    const books = allBooks.filter((book) => book.category === category);
     const Icon = categoryIcons[category] || MoreHorizontal;
     const color = getSpineColor(category, category);
 

@@ -1,13 +1,14 @@
 import { BookshelfSection, RecommendationSection } from '@/components/home';
 import {
-  dummyBooks,
+  getBooks,
   getRecommendedBooks,
   getLatestBooks,
   getPopularBooks,
   getAllCategories,
-} from '@/data/dummy-books';
+} from '@/lib/books-store';
 
 export default function HomePage() {
+  const allBooks = getBooks();
   const recommendedBooks = getRecommendedBooks();
   const latestBooks = getLatestBooks();
   const popularBooks = getPopularBooks(10);
@@ -16,7 +17,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <BookshelfSection
-        allBooks={dummyBooks}
+        allBooks={allBooks}
         recommendedBooks={recommendedBooks}
         latestBooks={latestBooks}
         categories={categories}
@@ -26,7 +27,7 @@ export default function HomePage() {
         recommendedBooks={recommendedBooks}
         latestBooks={latestBooks}
         popularBooks={popularBooks}
-        allBooks={dummyBooks}
+        allBooks={allBooks}
       />
     </div>
   );

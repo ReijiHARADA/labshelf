@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   RefreshCw,
@@ -21,7 +21,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { dummyBooks, getRecommendedBooks, getLatestBooks } from '@/data/dummy-books';
 import type { SyncLog, Book } from '@/types/book';
 
 const SHEET_ID_KEY = 'labshelf_sheet_id';
@@ -38,10 +37,22 @@ export default function AdminPage() {
     message: string;
     bookCount?: number;
   } | null>(null);
-  const [books, setBooks] = useState<Book[]>(dummyBooks);
+  const [books, setBooks] = useState<Book[]>([]);
+  const recommendedBooks = books.filter((book) => book.recommended);
+  const latestBooks = books.filter((book) => book.latestFlag);
 
-  const recommendedBooks = getRecommendedBooks();
-  const latestBooks = getLatestBooks();
+  const loadBooks = useCallback(async () => {
+    try {
+      const response = await fetch('/api/books?limit=1000', {
+        cache: 'no-store',
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      setBooks(Array.isArray(data.books) ? data.books : []);
+    } catch {
+      setBooks([]);
+    }
+  }, []);
 
   useEffect(() => {
     const savedSheetId = localStorage.getItem(SHEET_ID_KEY);
@@ -49,7 +60,8 @@ export default function AdminPage() {
       setSheetId(savedSheetId);
       setSheetIdInput(savedSheetId);
     }
-  }, []);
+    loadBooks();
+  }, [loadBooks]);
 
   const extractSheetId = (input: string): string => {
     const urlMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -90,6 +102,7 @@ export default function AdminPage() {
       const data = await response.json();
 
       if (data.success) {
+        await loadBooks();
         const newLog: SyncLog = {
           id: Date.now().toString(),
           timestamp: new Date().toISOString(),

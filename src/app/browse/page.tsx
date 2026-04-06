@@ -25,12 +25,6 @@ import {
 import { VirtualBookshelf, BookCover } from '@/components/bookshelf';
 import { BookDetailDrawer } from '@/components/bookshelf/book-detail-drawer';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  dummyBooks,
-  getAllCategories,
-  getAllTags,
-  searchBooks as searchBooksData,
-} from '@/data/dummy-books';
 import type { Book, SortOption } from '@/types/book';
 import { cn } from '@/lib/utils';
 
@@ -79,9 +73,31 @@ export default function BrowsePage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [allBooks, setAllBooks] = useState<Book[]>([]);
 
-  const categories = getAllCategories();
-  const tags = getAllTags();
+  const categories = useMemo(
+    () => [...new Set(allBooks.map((book) => book.category))],
+    [allBooks]
+  );
+  const tags = useMemo(
+    () => [...new Set(allBooks.flatMap((book) => book.tags))],
+    [allBooks]
+  );
+
+  useEffect(() => {
+    const fetchBooks = async () => {
+      try {
+        const res = await fetch('/api/books?limit=1000', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        setAllBooks(Array.isArray(data.books) ? data.books : []);
+      } catch {
+        setAllBooks([]);
+      }
+    };
+
+    fetchBooks();
+  }, []);
 
   useEffect(() => {
     const filter = searchParams.get('filter');
@@ -93,10 +109,20 @@ export default function BrowsePage() {
   }, [searchParams]);
 
   const filteredBooks = useMemo(() => {
-    let books = dummyBooks;
+    let books = allBooks;
 
     if (searchQuery) {
-      books = searchBooksData(searchQuery);
+      const lowerQuery = searchQuery.toLowerCase();
+      books = books.filter(
+        (book) =>
+          book.title.toLowerCase().includes(lowerQuery) ||
+          book.author.toLowerCase().includes(lowerQuery) ||
+          book.isbn.includes(searchQuery) ||
+          book.publisher.toLowerCase().includes(lowerQuery) ||
+          book.category.toLowerCase().includes(lowerQuery) ||
+          book.tags.some((tag) => tag.toLowerCase().includes(lowerQuery)) ||
+          book.description?.toLowerCase().includes(lowerQuery)
+      );
     }
 
     const filter = searchParams.get('filter');
@@ -117,7 +143,7 @@ export default function BrowsePage() {
     }
 
     return sortBooks(books, sortBy);
-  }, [searchQuery, selectedCategory, selectedTags, sortBy, searchParams]);
+  }, [allBooks, searchQuery, selectedCategory, selectedTags, sortBy, searchParams]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

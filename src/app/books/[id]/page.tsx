@@ -17,8 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookCover } from '@/components/bookshelf';
-import { getBookById, dummyBooks } from '@/data/dummy-books';
-import type { Book } from '@/types/book';
+import { getBookById, getRelatedBooks } from '@/lib/books-store';
 
 interface BookDetailPageProps {
   params: Promise<{ id: string }>;
@@ -234,25 +233,4 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
       </div>
     </div>
   );
-}
-
-function getRelatedBooks(book: Book, limit: number): Book[] {
-  const related = dummyBooks.filter(
-    (b) =>
-      b.id !== book.id &&
-      (b.category === book.category ||
-        b.tags.some((tag) => book.tags.includes(tag)))
-  );
-
-  return related
-    .sort((a, b) => {
-      const aScore =
-        (a.category === book.category ? 2 : 0) +
-        a.tags.filter((tag) => book.tags.includes(tag)).length;
-      const bScore =
-        (b.category === book.category ? 2 : 0) +
-        b.tags.filter((tag) => book.tags.includes(tag)).length;
-      return bScore - aScore;
-    })
-    .slice(0, limit);
 }
