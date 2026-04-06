@@ -25,6 +25,11 @@ const notoSansJP = Noto_Sans_JP({
 export const metadata: Metadata = {
   title: "LabShelf - 研究室蔵書管理",
   description: "研究室の蔵書を見やすく・探しやすく・管理しやすく",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
