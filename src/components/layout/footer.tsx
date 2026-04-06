@@ -1,7 +1,35 @@
+ 'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { BookOpen } from 'lucide-react';
 
 export function Footer() {
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/categories', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = Array.isArray(data?.categories) ? data.categories : [];
+        if (mounted) {
+          setCategories(list);
+        }
+      } catch {
+        // noop: フッター表示のため失敗時は静かに無視
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const footerCategories = categories.slice(0, 6);
+
   return (
     <footer className="border-t border-border/50 bg-muted/30">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
@@ -54,38 +82,20 @@ export function Footer() {
           <div>
             <h3 className="text-sm font-semibold mb-3">カテゴリ</h3>
             <ul className="space-y-2">
-              <li>
-                <Link
-                  href="/browse?category=プログラミング"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  プログラミング
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/browse?category=機械学習"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  機械学習
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/browse?category=デザイン・UX"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  デザイン・UX
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/browse?category=数学・統計"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  数学・統計
-                </Link>
-              </li>
+              {footerCategories.length === 0 ? (
+                <li className="text-sm text-muted-foreground">カテゴリは読み込み中です</li>
+              ) : (
+                footerCategories.map((category) => (
+                  <li key={category}>
+                    <Link
+                      href={`/browse?category=${encodeURIComponent(category)}`}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {category}
+                    </Link>
+                  </li>
+                ))
+              )}
             </ul>
           </div>
 
