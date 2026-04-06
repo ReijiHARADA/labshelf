@@ -1,41 +1,44 @@
 import type { Book, SyncLog } from '@/types/book';
 import { updateBooks, updateSyncStatus, addSyncLog, getBooks } from './books-store';
+import { fetchBookInfo } from './book-api';
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const API_KEY = process.env.GOOGLE_API_KEY;
 
 interface SheetRow {
-  id: string;
+  id?: string;
   isbn: string;
-  title: string;
-  subtitle: string;
-  author: string;
-  publisher: string;
-  publishedYear: string;
-  category: string;
-  tags: string;
-  description: string;
-  toc: string;
-  coverImageUrl: string;
-  recommended: string;
-  latestFlag: string;
-  popularityScore: string;
-  createdAt: string;
-  updatedAt: string;
-  memo: string;
+  title?: string;
+  subtitle?: string;
+  author?: string;
+  publisher?: string;
+  publishedYear?: string;
+  category?: string;
+  tags?: string;
+  description?: string;
+  toc?: string;
+  coverImageUrl?: string;
+  recommended?: string;
+  latestFlag?: string;
+  popularityScore?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  memo?: string;
 }
 
-function parseBoolean(value: string): boolean {
-  const lower = value?.toLowerCase().trim();
+function parseBoolean(value: string | undefined): boolean {
+  if (!value) return false;
+  const lower = value.toLowerCase().trim();
   return lower === 'true' || lower === '1' || lower === 'yes' || lower === 'はい';
 }
 
-function parseNumber(value: string, defaultValue = 0): number {
+function parseNumber(value: string | undefined, defaultValue = 0): number {
+  if (!value) return defaultValue;
   const num = parseInt(value, 10);
   return isNaN(num) ? defaultValue : num;
 }
 
-function parseTags(value: string): string[] {
+function parseTags(value: string | undefined): string[] {
   if (!value) return [];
   return value
     .split(/[,、]/)
@@ -43,7 +46,7 @@ function parseTags(value: string): string[] {
     .filter(Boolean);
 }
 
-function parseDate(value: string): string {
+function parseDate(value: string | undefined): string {
   if (!value) return new Date().toISOString();
   try {
     const date = new Date(value);
@@ -53,40 +56,67 @@ function parseDate(value: string): string {
   }
 }
 
-function validateBook(row: SheetRow, index: number): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-
-  if (!row.id?.trim()) {
-    errors.push(`行${index + 2}: IDが空です`);
-  }
-  if (!row.title?.trim()) {
-    errors.push(`行${index + 2}: タイトルが空です`);
-  }
-  if (!row.author?.trim()) {
-    errors.push(`行${index + 2}: 著者が空です`);
-  }
-
-  if (row.isbn && !/^[\d-]+$/.test(row.isbn.replace(/\s/g, ''))) {
-    errors.push(`行${index + 2}: ISBNの形式が不正です (${row.isbn})`);
-  }
-
-  return { valid: errors.length === 0, errors };
+function normalizeISBN(isbn: string): string {
+  return isbn.replace(/[-\s]/g, '');
 }
 
-function transformRow(row: SheetRow): Book {
+async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | null> {
+  const isbn = row.isbn?.trim();
+  
+  if (!isbn) {
+    console.log(`行${index + 2}: ISBNが空です`);
+    return null;
+  }
+  
+  const normalizedISBN = normalizeISBN(isbn);
+  
+  let title = row.title?.trim();
+  let author = row.author?.trim();
+  let publisher = row.publisher?.trim();
+  let publishedYear = parseNumber(row.publishedYear, 0);
+  let description = row.description?.trim();
+  let coverImageUrl = row.coverImageUrl?.trim();
+  let subtitle = row.subtitle?.trim();
+  
+  if (!title || !author) {
+    console.log(`行${index + 2}: ISBN ${normalizedISBN} の情報をAPIから取得中...`);
+    const apiData = await fetchBookInfo(normalizedISBN);
+    
+    if (apiData) {
+      title = title || apiData.title || '';
+      author = author || apiData.author || '';
+      publisher = publisher || apiData.publisher || '';
+      publishedYear = publishedYear || apiData.publishedYear || new Date().getFullYear();
+      description = description || apiData.description;
+      coverImageUrl = coverImageUrl || apiData.coverImageUrl;
+      subtitle = subtitle || apiData.subtitle;
+      
+      console.log(`  -> 取得成功: ${title}`);
+    } else {
+      console.log(`  -> API取得失敗`);
+    }
+  }
+  
+  if (!title) {
+    console.log(`行${index + 2}: タイトルを取得できませんでした (ISBN: ${normalizedISBN})`);
+    return null;
+  }
+  
+  const id = row.id?.trim() || normalizedISBN || `book-${index}`;
+  
   return {
-    id: row.id.trim(),
-    isbn: row.isbn?.trim() || '',
-    title: row.title.trim(),
-    subtitle: row.subtitle?.trim() || undefined,
-    author: row.author.trim(),
-    publisher: row.publisher?.trim() || '',
-    publishedYear: parseNumber(row.publishedYear, new Date().getFullYear()),
+    id,
+    isbn: normalizedISBN,
+    title,
+    subtitle: subtitle || undefined,
+    author: author || '不明',
+    publisher: publisher || '',
+    publishedYear: publishedYear || new Date().getFullYear(),
     category: row.category?.trim() || 'その他',
     tags: parseTags(row.tags),
-    description: row.description?.trim() || undefined,
+    description: description || undefined,
     toc: row.toc?.trim() || undefined,
-    coverImageUrl: row.coverImageUrl?.trim() || undefined,
+    coverImageUrl: coverImageUrl || undefined,
     recommended: parseBoolean(row.recommended),
     latestFlag: parseBoolean(row.latestFlag),
     popularityScore: parseNumber(row.popularityScore, 50),
@@ -117,7 +147,7 @@ export async function syncFromGoogleSheets(): Promise<{
       : `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
 
     const response = await fetch(url, {
-      next: { revalidate: 0 },
+      cache: 'no-store',
       headers: {
         'Cache-Control': 'no-cache',
       },
@@ -132,10 +162,10 @@ export async function syncFromGoogleSheets(): Promise<{
     if (API_KEY) {
       const data = await response.json();
       const values = data.values as string[][];
-      const headers = values[0];
+      const headers = values[0].map((h: string) => h.toLowerCase().trim());
       rows = values.slice(1).map((row) => {
         const obj: Record<string, string> = {};
-        headers.forEach((header, i) => {
+        headers.forEach((header: string, i: number) => {
           obj[header] = row[i] || '';
         });
         return obj as unknown as SheetRow;
@@ -144,26 +174,44 @@ export async function syncFromGoogleSheets(): Promise<{
       const text = await response.text();
       const jsonStr = text.replace(/^[^(]+\(|\);$/g, '');
       const data = JSON.parse(jsonStr);
-      const cols = data.table.cols.map((col: { label: string }) => col.label);
+      const cols = data.table.cols.map((col: { label: string }) => col.label?.toLowerCase().trim() || '');
       rows = data.table.rows.map((row: { c: Array<{ v: unknown } | null> }) => {
         const obj: Record<string, string> = {};
         cols.forEach((col: string, i: number) => {
-          obj[col] = row.c[i]?.v?.toString() || '';
+          if (col) {
+            obj[col] = row.c[i]?.v?.toString() || '';
+          }
         });
         return obj as unknown as SheetRow;
       });
     }
 
+    console.log(`${rows.length}行のデータを取得しました`);
+
     const validBooks: Book[] = [];
     
-    rows.forEach((row, index) => {
-      const validation = validateBook(row, index);
-      if (validation.valid) {
-        validBooks.push(transformRow(row));
-      } else {
-        errors.push(...validation.errors);
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      
+      if (!row.isbn?.trim()) {
+        continue;
       }
-    });
+      
+      try {
+        const book = await enrichBookWithAPI(row, i);
+        if (book) {
+          validBooks.push(book);
+        }
+      } catch (error) {
+        const errorMsg = `行${i + 2}: 処理エラー - ${error instanceof Error ? error.message : '不明'}`;
+        errors.push(errorMsg);
+        console.error(errorMsg);
+      }
+      
+      if (i < rows.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
 
     if (validBooks.length === 0) {
       throw new Error('有効な本のデータがありません');
@@ -222,6 +270,58 @@ export async function syncFromGoogleSheets(): Promise<{
       duration,
     };
   }
+}
+
+export async function syncFromISBNList(isbns: string[]): Promise<{
+  success: boolean;
+  books: Book[];
+  errors: string[];
+}> {
+  const books: Book[] = [];
+  const errors: string[] = [];
+  
+  for (let i = 0; i < isbns.length; i++) {
+    const isbn = isbns[i].trim();
+    if (!isbn) continue;
+    
+    try {
+      const apiData = await fetchBookInfo(isbn);
+      if (apiData && apiData.title) {
+        books.push({
+          id: normalizeISBN(isbn),
+          isbn: normalizeISBN(isbn),
+          title: apiData.title,
+          subtitle: apiData.subtitle,
+          author: apiData.author || '不明',
+          publisher: apiData.publisher || '',
+          publishedYear: apiData.publishedYear || new Date().getFullYear(),
+          category: 'その他',
+          tags: apiData.tags || [],
+          description: apiData.description,
+          coverImageUrl: apiData.coverImageUrl,
+          recommended: false,
+          latestFlag: true,
+          popularityScore: 50,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        errors.push(`ISBN ${isbn}: 情報を取得できませんでした`);
+      }
+    } catch (error) {
+      errors.push(`ISBN ${isbn}: ${error instanceof Error ? error.message : '不明なエラー'}`);
+    }
+    
+    if (i < isbns.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+  }
+  
+  return {
+    success: books.length > 0,
+    books,
+    errors,
+  };
 }
 
 export function getLastSyncTime(): string | null {
