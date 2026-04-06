@@ -2,6 +2,7 @@ import type { Book, SyncStatus, SyncLog } from '@/types/book';
 
 let cachedBooks: Book[] = [];
 let syncStatus: SyncStatus = {
+  lastSyncAt: '',
   status: 'idle',
   bookCount: 0,
 };
