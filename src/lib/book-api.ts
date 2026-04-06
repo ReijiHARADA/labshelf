@@ -65,6 +65,27 @@ function normalizeISBN(isbn: string): string {
   return isbn.replace(/[-\s]/g, '');
 }
 
+async function isUsableCoverUrl(url: string | undefined): Promise<boolean> {
+  if (!url) return false;
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    if (!response.ok) return false;
+
+    const parsed = new URL(url);
+    const contentLengthHeader = response.headers.get('content-length');
+    const contentLength = contentLengthHeader ? parseInt(contentLengthHeader, 10) : 0;
+
+    // Google Books placeholder images are often very small (~9KB).
+    if (parsed.hostname.includes('books.google.com') && contentLength > 0 && contentLength <= 10000) {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function fetchOpenLibraryCoverUrl(isbn: string): Promise<string | undefined> {
   const normalizedISBN = normalizeISBN(isbn);
   const url = `https://covers.openlibrary.org/b/isbn/${normalizedISBN}-L.jpg?default=false`;
@@ -220,10 +241,18 @@ export async function fetchBookInfo(isbn: string): Promise<Partial<Book> | null>
 
   const primary = openBDResult ?? googleResult ?? {};
   const fallback = googleResult ?? openBDResult ?? {};
-  const bestCoverUrl =
-    openBDResult?.coverImageUrl ||
-    openLibraryCoverUrl ||
-    googleResult?.coverImageUrl;
+  const candidateCoverUrls = [
+    openBDResult?.coverImageUrl,
+    openLibraryCoverUrl,
+    googleResult?.coverImageUrl,
+  ];
+  let bestCoverUrl: string | undefined;
+  for (const candidate of candidateCoverUrls) {
+    if (await isUsableCoverUrl(candidate)) {
+      bestCoverUrl = candidate;
+      break;
+    }
+  }
 
   return {
     isbn: normalizedISBN,
