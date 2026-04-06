@@ -2,15 +2,12 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
-  Heart,
-  BookmarkPlus,
   Copy,
   Calendar,
   Building2,
   Tag,
   FileText,
   Star,
-  Share2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -77,21 +74,6 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                 )}
               </div>
 
-              {/* Actions */}
-              <div className="flex flex-col gap-2 mt-6">
-                <Button className="w-full">
-                  <Heart className="h-4 w-4 mr-2" />
-                  お気に入りに追加
-                </Button>
-                <Button variant="outline" className="w-full">
-                  <BookmarkPlus className="h-4 w-4 mr-2" />
-                  読みたい本に追加
-                </Button>
-                <Button variant="ghost" className="w-full">
-                  <Share2 className="h-4 w-4 mr-2" />
-                  共有
-                </Button>
-              </div>
             </div>
           </div>
 

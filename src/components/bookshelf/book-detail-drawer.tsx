@@ -4,8 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import {
   X,
-  Heart,
-  BookmarkPlus,
   Copy,
   ExternalLink,
   Calendar,
@@ -106,17 +104,6 @@ export function BookDetailDrawer({ book, open, onClose }: BookDetailDrawerProps)
                     )}
                     <p className="text-sm font-medium mb-4">{book.author}</p>
 
-                    {/* Quick actions */}
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="h-8">
-                        <Heart className="h-3.5 w-3.5 mr-1.5" />
-                        お気に入り
-                      </Button>
-                      <Button variant="outline" size="sm" className="h-8">
-                        <BookmarkPlus className="h-3.5 w-3.5 mr-1.5" />
-                        読みたい
-                      </Button>
-                    </div>
                   </div>
                 </div>
 
