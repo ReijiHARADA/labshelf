@@ -8,9 +8,11 @@ import {
   getAllTags,
   getAllAuthors,
 } from '@/lib/books-store';
+import { ensureBooksLoaded } from '@/lib/sheets-sync';
 import type { SortOption } from '@/types/book';
 
 export async function GET(request: NextRequest) {
+  await ensureBooksLoaded();
   const searchParams = request.nextUrl.searchParams;
   
   const query = searchParams.get('q') || '';

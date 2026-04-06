@@ -18,12 +18,14 @@ import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookCover } from '@/components/bookshelf';
 import { getBookById, getRelatedBooks } from '@/lib/books-store';
+import { ensureBooksLoaded } from '@/lib/sheets-sync';
 
 interface BookDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
 export default async function BookDetailPage({ params }: BookDetailPageProps) {
+  await ensureBooksLoaded();
   const { id } = await params;
   const book = getBookById(id);
 

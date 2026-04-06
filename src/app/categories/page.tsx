@@ -14,6 +14,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { getBooks, getAllCategories } from '@/lib/books-store';
 import { getSpineColor } from '@/lib/spine-colors';
+import { ensureBooksLoaded } from '@/lib/sheets-sync';
 
 const categoryIcons: Record<string, React.ElementType> = {
   'プログラミング': Code,
@@ -27,7 +28,8 @@ const categoryIcons: Record<string, React.ElementType> = {
   'その他': MoreHorizontal,
 };
 
-export default function CategoriesPage() {
+export default async function CategoriesPage() {
+  await ensureBooksLoaded();
   const allBooks = getBooks();
   const categories = getAllCategories();
 

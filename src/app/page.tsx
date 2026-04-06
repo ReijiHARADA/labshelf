@@ -6,8 +6,10 @@ import {
   getPopularBooks,
   getAllCategories,
 } from '@/lib/books-store';
+import { ensureBooksLoaded } from '@/lib/sheets-sync';
 
-export default function HomePage() {
+export default async function HomePage() {
+  await ensureBooksLoaded();
   const allBooks = getBooks();
   const recommendedBooks = getRecommendedBooks();
   const latestBooks = getLatestBooks();

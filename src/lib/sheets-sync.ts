@@ -337,6 +337,13 @@ export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
   }
 }
 
+export async function ensureBooksLoaded(): Promise<void> {
+  if (getBooks().length > 0) return;
+  const SHEET_ID = process.env.GOOGLE_SHEET_ID;
+  if (!SHEET_ID) return;
+  await syncFromGoogleSheets(SHEET_ID);
+}
+
 export async function syncFromISBNList(isbns: string[]): Promise<{
   success: boolean;
   books: Book[];
