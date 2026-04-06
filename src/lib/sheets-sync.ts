@@ -2,9 +2,6 @@ import type { Book, SyncLog } from '@/types/book';
 import { updateBooks, updateSyncStatus, addSyncLog, getBooks } from './books-store';
 import { fetchBookInfo } from './book-api';
 
-const SHEET_ID = process.env.GOOGLE_SHEET_ID;
-const API_KEY = process.env.GOOGLE_API_KEY;
-
 interface SheetRow {
   id?: string;
   isbn: string;
@@ -126,7 +123,7 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
   };
 }
 
-export async function syncFromGoogleSheets(): Promise<{
+export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
   success: boolean;
   bookCount: number;
   errors: string[];
@@ -135,16 +132,21 @@ export async function syncFromGoogleSheets(): Promise<{
   const startTime = Date.now();
   const errors: string[] = [];
 
+  const SHEET_ID = sheetIdParam || process.env.GOOGLE_SHEET_ID;
+  const API_KEY = process.env.GOOGLE_API_KEY;
+
   updateSyncStatus({ status: 'syncing' });
 
   try {
     if (!SHEET_ID) {
-      throw new Error('GOOGLE_SHEET_ID が設定されていません');
+      throw new Error('スプレッドシートIDが設定されていません');
     }
 
     const url = API_KEY
       ? `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:R?key=${API_KEY}`
       : `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+
+    console.log(`Fetching from: ${url}`);
 
     const response = await fetch(url, {
       cache: 'no-store',
@@ -154,7 +156,7 @@ export async function syncFromGoogleSheets(): Promise<{
     });
 
     if (!response.ok) {
-      throw new Error(`シートの取得に失敗しました: ${response.status}`);
+      throw new Error(`シートの取得に失敗しました: ${response.status}。共有設定を確認してください。`);
     }
 
     let rows: SheetRow[];
@@ -214,7 +216,7 @@ export async function syncFromGoogleSheets(): Promise<{
     }
 
     if (validBooks.length === 0) {
-      throw new Error('有効な本のデータがありません');
+      throw new Error('有効な本のデータがありません。ISBN列にデータがあるか確認してください。');
     }
 
     updateBooks(validBooks);

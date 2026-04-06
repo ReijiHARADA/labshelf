@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   RefreshCw,
@@ -9,80 +9,144 @@ import {
   Clock,
   BookOpen,
   Settings,
-  FileText,
   AlertTriangle,
   Loader2,
+  Link as LinkIcon,
+  Save,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { dummyBooks, getRecommendedBooks, getLatestBooks } from '@/data/dummy-books';
-import type { SyncLog } from '@/types/book';
+import type { SyncLog, Book } from '@/types/book';
 
-const mockSyncLogs: SyncLog[] = [
-  {
-    id: '1',
-    timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    status: 'success',
-    bookCount: 40,
-    duration: 2340,
-  },
-  {
-    id: '2',
-    timestamp: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-    status: 'success',
-    bookCount: 40,
-    duration: 2120,
-  },
-  {
-    id: '3',
-    timestamp: new Date(Date.now() - 1000 * 60 * 150).toISOString(),
-    status: 'error',
-    bookCount: 0,
-    errorMessage: 'ネットワークエラー: タイムアウト',
-    duration: 30000,
-  },
-  {
-    id: '4',
-    timestamp: new Date(Date.now() - 1000 * 60 * 210).toISOString(),
-    status: 'success',
-    bookCount: 39,
-    duration: 1980,
-  },
-];
+const SHEET_ID_KEY = 'labshelf_sheet_id';
 
 export default function AdminPage() {
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncLogs, setSyncLogs] = useState<SyncLog[]>(mockSyncLogs);
-  const [lastSyncAt, setLastSyncAt] = useState(new Date(Date.now() - 1000 * 60 * 30));
+  const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
+  const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
+  const [sheetId, setSheetId] = useState('');
+  const [sheetIdInput, setSheetIdInput] = useState('');
+  const [sheetIdSaved, setSheetIdSaved] = useState(false);
+  const [syncResult, setSyncResult] = useState<{
+    success: boolean;
+    message: string;
+    bookCount?: number;
+  } | null>(null);
+  const [books, setBooks] = useState<Book[]>(dummyBooks);
 
   const recommendedBooks = getRecommendedBooks();
   const latestBooks = getLatestBooks();
 
-  const handleSync = async () => {
-    setIsSyncing(true);
-    
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    
-    const newLog: SyncLog = {
-      id: Date.now().toString(),
-      timestamp: new Date().toISOString(),
-      status: 'success',
-      bookCount: dummyBooks.length,
-      duration: 2150,
-    };
-    
-    setSyncLogs((prev) => [newLog, ...prev]);
-    setLastSyncAt(new Date());
-    setIsSyncing(false);
+  useEffect(() => {
+    const savedSheetId = localStorage.getItem(SHEET_ID_KEY);
+    if (savedSheetId) {
+      setSheetId(savedSheetId);
+      setSheetIdInput(savedSheetId);
+    }
+  }, []);
+
+  const extractSheetId = (input: string): string => {
+    const urlMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (urlMatch) {
+      return urlMatch[1];
+    }
+    if (/^[a-zA-Z0-9-_]+$/.test(input.trim())) {
+      return input.trim();
+    }
+    return input.trim();
   };
 
-  const booksWithIssues = dummyBooks.filter(
+  const handleSaveSheetId = () => {
+    const extractedId = extractSheetId(sheetIdInput);
+    setSheetId(extractedId);
+    localStorage.setItem(SHEET_ID_KEY, extractedId);
+    setSheetIdSaved(true);
+    setTimeout(() => setSheetIdSaved(false), 2000);
+  };
+
+  const handleSync = async () => {
+    if (!sheetId) {
+      setSyncResult({
+        success: false,
+        message: 'スプレッドシートIDを設定してください',
+      });
+      return;
+    }
+
+    setIsSyncing(true);
+    setSyncResult(null);
+
+    try {
+      const response = await fetch(`/api/sync?sheetId=${encodeURIComponent(sheetId)}`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const newLog: SyncLog = {
+          id: Date.now().toString(),
+          timestamp: new Date().toISOString(),
+          status: 'success',
+          bookCount: data.bookCount,
+          duration: data.duration || 0,
+        };
+        setSyncLogs((prev) => [newLog, ...prev]);
+        setLastSyncAt(new Date());
+        setSyncResult({
+          success: true,
+          message: `${data.bookCount}冊の本を同期しました`,
+          bookCount: data.bookCount,
+        });
+      } else {
+        const newLog: SyncLog = {
+          id: Date.now().toString(),
+          timestamp: new Date().toISOString(),
+          status: 'error',
+          bookCount: 0,
+          errorMessage: data.errors?.[0] || '同期に失敗しました',
+          duration: data.duration || 0,
+        };
+        setSyncLogs((prev) => [newLog, ...prev]);
+        setSyncResult({
+          success: false,
+          message: data.errors?.[0] || '同期に失敗しました',
+        });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+      const newLog: SyncLog = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        status: 'error',
+        bookCount: 0,
+        errorMessage,
+        duration: 0,
+      };
+      setSyncLogs((prev) => [newLog, ...prev]);
+      setSyncResult({
+        success: false,
+        message: errorMessage,
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const booksWithIssues = books.filter(
     (book) => !book.isbn || !book.description
   );
+
+  const getSheetUrl = () => {
+    if (!sheetId) return null;
+    return `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -97,7 +161,7 @@ export default function AdminPage() {
           </div>
           <Button
             onClick={handleSync}
-            disabled={isSyncing}
+            disabled={isSyncing || !sheetId}
             size="lg"
           >
             {isSyncing ? (
@@ -109,6 +173,83 @@ export default function AdminPage() {
           </Button>
         </div>
 
+        {/* Sheet ID Setting */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <LinkIcon className="h-5 w-5" />
+              スプレッドシート設定
+            </CardTitle>
+            <CardDescription>
+              Google スプレッドシートのURLまたはIDを入力してください
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <Input
+                  placeholder="https://docs.google.com/spreadsheets/d/xxxxx/edit または シートID"
+                  value={sheetIdInput}
+                  onChange={(e) => setSheetIdInput(e.target.value)}
+                  className="h-11"
+                />
+              </div>
+              <Button onClick={handleSaveSheetId} className="h-11">
+                {sheetIdSaved ? (
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {sheetIdSaved ? '保存しました' : '保存'}
+              </Button>
+            </div>
+            {sheetId && (
+              <div className="mt-3 flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">設定中のID:</span>
+                <code className="bg-muted px-2 py-0.5 rounded text-xs">{sheetId}</code>
+                <a
+                  href={getSheetUrl() || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  開く
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
+            {!sheetId && (
+              <p className="mt-3 text-sm text-amber-600">
+                スプレッドシートIDを設定すると同期が有効になります
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Sync Result */}
+        {syncResult && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`mb-6 p-4 rounded-lg ${
+              syncResult.success
+                ? 'bg-emerald-50 border border-emerald-200'
+                : 'bg-red-50 border border-red-200'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {syncResult.success ? (
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-red-600" />
+              )}
+              <p className={syncResult.success ? 'text-emerald-800' : 'text-red-800'}>
+                {syncResult.message}
+              </p>
+            </div>
+          </motion.div>
+        )}
+
         {/* Stats cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card>
@@ -118,7 +259,7 @@ export default function AdminPage() {
                   <BookOpen className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{dummyBooks.length}</p>
+                  <p className="text-2xl font-bold">{books.length}</p>
                   <p className="text-sm text-muted-foreground">総蔵書数</p>
                 </div>
               </div>
@@ -132,8 +273,10 @@ export default function AdminPage() {
                   <CheckCircle2 className="h-6 w-6 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">正常</p>
-                  <p className="text-sm text-muted-foreground">同期ステータス</p>
+                  <p className="text-2xl font-bold">
+                    {sheetId ? '設定済み' : '未設定'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">シート接続</p>
                 </div>
               </div>
             </CardContent>
@@ -147,7 +290,9 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {Math.round((Date.now() - lastSyncAt.getTime()) / 1000 / 60)}分前
+                    {lastSyncAt
+                      ? `${Math.round((Date.now() - lastSyncAt.getTime()) / 1000 / 60)}分前`
+                      : '未同期'}
                   </p>
                   <p className="text-sm text-muted-foreground">最終同期</p>
                 </div>
@@ -197,46 +342,54 @@ export default function AdminPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[400px]">
-                  <div className="space-y-4">
-                    {syncLogs.map((log, index) => (
-                      <motion.div
-                        key={log.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="flex items-start gap-4 p-4 rounded-lg bg-muted/30"
-                      >
-                        {log.status === 'success' ? (
-                          <CheckCircle2 className="h-5 w-5 text-emerald-500 mt-0.5" />
-                        ) : (
-                          <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">
-                              {log.status === 'success' ? '同期完了' : '同期失敗'}
-                            </p>
-                            <Badge
-                              variant={log.status === 'success' ? 'secondary' : 'destructive'}
-                            >
-                              {log.status === 'success' ? `${log.bookCount}冊` : 'エラー'}
-                            </Badge>
-                          </div>
-                          {log.errorMessage && (
-                            <p className="text-sm text-red-600 mt-1">
-                              {log.errorMessage}
-                            </p>
+                {syncLogs.length > 0 ? (
+                  <ScrollArea className="h-[400px]">
+                    <div className="space-y-4">
+                      {syncLogs.map((log, index) => (
+                        <motion.div
+                          key={log.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="flex items-start gap-4 p-4 rounded-lg bg-muted/30"
+                        >
+                          {log.status === 'success' ? (
+                            <CheckCircle2 className="h-5 w-5 text-emerald-500 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
                           )}
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {new Date(log.timestamp).toLocaleString('ja-JP')} ・{' '}
-                            {(log.duration / 1000).toFixed(1)}秒
-                          </p>
-                        </div>
-                      </motion.div>
-                    ))}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">
+                                {log.status === 'success' ? '同期完了' : '同期失敗'}
+                              </p>
+                              <Badge
+                                variant={log.status === 'success' ? 'secondary' : 'destructive'}
+                              >
+                                {log.status === 'success' ? `${log.bookCount}冊` : 'エラー'}
+                              </Badge>
+                            </div>
+                            {log.errorMessage && (
+                              <p className="text-sm text-red-600 mt-1">
+                                {log.errorMessage}
+                              </p>
+                            )}
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {new Date(log.timestamp).toLocaleString('ja-JP')}
+                              {log.duration > 0 && ` ・ ${(log.duration / 1000).toFixed(1)}秒`}
+                            </p>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <RefreshCw className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                    <p>まだ同期履歴がありません</p>
+                    <p className="text-sm mt-1">「今すぐ同期」ボタンで同期を開始してください</p>
                   </div>
-                </ScrollArea>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -363,26 +516,31 @@ export default function AdminPage() {
 
             <Card className="mt-6">
               <CardHeader>
-                <CardTitle>設定方法</CardTitle>
+                <CardTitle>スプレッドシートの設定方法</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="prose prose-sm max-w-none text-muted-foreground">
+                  <p className="font-medium text-foreground">1. スプレッドシートを作成</p>
                   <p>
-                    おすすめフラグや新着フラグは、Google スプレッドシートで直接編集できます。
+                    最低限 <code className="bg-muted px-1.5 py-0.5 rounded text-xs">isbn</code> 列があればOKです。
+                    他の情報（タイトル、著者など）はISBNから自動取得されます。
                   </p>
-                  <ul className="mt-2 space-y-1">
-                    <li>
-                      <code className="bg-muted px-1.5 py-0.5 rounded text-xs">recommended</code> 列に{' '}
-                      <code className="bg-muted px-1.5 py-0.5 rounded text-xs">TRUE</code> を設定すると、おすすめとして表示されます
-                    </li>
-                    <li>
-                      <code className="bg-muted px-1.5 py-0.5 rounded text-xs">latestFlag</code> 列に{' '}
-                      <code className="bg-muted px-1.5 py-0.5 rounded text-xs">TRUE</code> を設定すると、新着として表示されます
-                    </li>
+                  
+                  <p className="font-medium text-foreground mt-4">2. 共有設定</p>
+                  <p>
+                    スプレッドシートの共有設定で「リンクを知っている全員が閲覧可能」に設定してください。
+                  </p>
+
+                  <p className="font-medium text-foreground mt-4">3. 利用可能な列</p>
+                  <ul className="mt-2 space-y-1 text-sm">
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">isbn</code> - ISBN番号（必須）</li>
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">title</code> - タイトル（空ならAPI取得）</li>
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">author</code> - 著者（空ならAPI取得）</li>
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">category</code> - カテゴリ</li>
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">tags</code> - タグ（カンマ区切り）</li>
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">recommended</code> - おすすめ（TRUE/FALSE）</li>
+                    <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">memo</code> - メモ</li>
                   </ul>
-                  <p className="mt-4">
-                    変更後、「今すぐ同期」ボタンを押すか、定期同期を待つとアプリに反映されます。
-                  </p>
                 </div>
               </CardContent>
             </Card>

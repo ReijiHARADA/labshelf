@@ -13,6 +13,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const sheetId = request.nextUrl.searchParams.get('sheetId');
   const contentType = request.headers.get('content-type');
   
   if (contentType?.includes('application/json')) {
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
   }
   
-  const result = await syncFromGoogleSheets();
+  const result = await syncFromGoogleSheets(sheetId || undefined);
 
   return NextResponse.json({
     success: result.success,
