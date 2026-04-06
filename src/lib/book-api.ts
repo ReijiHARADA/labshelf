@@ -65,6 +65,22 @@ function normalizeISBN(isbn: string): string {
   return isbn.replace(/[-\s]/g, '');
 }
 
+function upgradeGoogleBooksCoverUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url.replace('http:', 'https:'));
+    if (parsed.hostname.includes('books.google.com')) {
+      const zoom = parsed.searchParams.get('zoom');
+      if (!zoom || Number(zoom) < 2) {
+        parsed.searchParams.set('zoom', '3');
+      }
+    }
+    return parsed.toString();
+  } catch {
+    return url.replace('http:', 'https:');
+  }
+}
+
 export async function fetchBookInfoFromGoogleBooks(isbn: string): Promise<Partial<Book> | null> {
   const normalizedISBN = normalizeISBN(isbn);
   
@@ -106,7 +122,7 @@ export async function fetchBookInfoFromGoogleBooks(isbn: string): Promise<Partia
       publisher: volume.publisher || '',
       publishedYear,
       description: volume.description,
-      coverImageUrl: imageLink?.replace('http:', 'https:'),
+      coverImageUrl: upgradeGoogleBooksCoverUrl(imageLink),
       tags: volume.categories || [],
     };
   } catch (error) {
