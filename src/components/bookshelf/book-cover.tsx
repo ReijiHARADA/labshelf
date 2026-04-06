@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import { BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,8 +21,9 @@ const sizeClasses = {
 
 export function BookCover({ book, size = 'md', className }: BookCoverProps) {
   const spineColor = getSpineColor(book.category, book.id);
+  const [imageError, setImageError] = useState(false);
 
-  if (book.coverImageUrl) {
+  if (book.coverImageUrl && !imageError) {
     return (
       <div
         className={cn(
@@ -36,6 +38,7 @@ export function BookCover({ book, size = 'md', className }: BookCoverProps) {
           fill
           className="object-cover"
           sizes={size === 'lg' ? '128px' : size === 'md' ? '96px' : '64px'}
+          onError={() => setImageError(true)}
         />
       </div>
     );

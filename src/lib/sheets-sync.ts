@@ -368,7 +368,16 @@ export async function ensureBooksLoaded(): Promise<void> {
 
   const SHEET_ID = process.env.GOOGLE_SHEET_ID;
   if (!SHEET_ID) return;
-  await syncFromGoogleSheets(SHEET_ID);
+  try {
+    await Promise.race([
+      syncFromGoogleSheets(SHEET_ID),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('初期同期がタイムアウトしました')), 4000)
+      ),
+    ]);
+  } catch (error) {
+    console.error('Initial sync skipped:', error);
+  }
 }
 
 export async function syncFromISBNList(isbns: string[]): Promise<{
