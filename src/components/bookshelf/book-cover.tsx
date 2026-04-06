@@ -11,6 +11,8 @@ interface BookCoverProps {
   book: Book;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  imageSizes?: string;
+  imageQuality?: number;
 }
 
 const sizeClasses = {
@@ -19,7 +21,13 @@ const sizeClasses = {
   lg: 'w-32 h-48',
 };
 
-export function BookCover({ book, size = 'md', className }: BookCoverProps) {
+export function BookCover({
+  book,
+  size = 'md',
+  className,
+  imageSizes,
+  imageQuality = 90,
+}: BookCoverProps) {
   const spineColor = getSpineColor(book.category, book.id);
   const [imageError, setImageError] = useState(false);
 
@@ -37,7 +45,8 @@ export function BookCover({ book, size = 'md', className }: BookCoverProps) {
           alt={book.title}
           fill
           className="object-cover"
-          sizes={size === 'lg' ? '128px' : size === 'md' ? '96px' : '64px'}
+          sizes={imageSizes || (size === 'lg' ? '220px' : size === 'md' ? '120px' : '80px')}
+          quality={imageQuality}
           onError={() => setImageError(true)}
         />
       </div>

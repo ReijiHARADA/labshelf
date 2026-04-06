@@ -54,7 +54,13 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           {/* Left column - Cover and actions */}
           <div className="lg:col-span-1">
             <div className="sticky top-24">
-              <BookCover book={book} size="lg" className="w-full max-w-[200px] mx-auto lg:mx-0 h-auto aspect-[2/3]" />
+              <BookCover
+                book={book}
+                size="lg"
+                imageSizes="(max-width: 640px) 70vw, (max-width: 1024px) 40vw, 260px"
+                imageQuality={95}
+                className="w-full max-w-[260px] mx-auto lg:mx-0 h-auto aspect-[2/3]"
+              />
 
               {/* Badges */}
               <div className="flex flex-wrap gap-2 mt-4 justify-center lg:justify-start">
