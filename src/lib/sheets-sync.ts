@@ -1,6 +1,17 @@
 import type { Book, SyncLog } from '@/types/book';
-import { updateBooks, updateSyncStatus, addSyncLog, getBooks } from './books-store';
+import {
+  updateBooks,
+  updateSyncStatus,
+  addSyncLog,
+  getBooks,
+  setCustomCategories,
+} from './books-store';
 import { fetchBookInfo } from './book-api';
+import {
+  loadBooksFromDatabase,
+  upsertBooksToDatabase,
+  loadCategoriesFromDatabase,
+} from './books-db';
 
 interface SheetRow {
   id?: string;
@@ -280,6 +291,7 @@ export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
       throw new Error('有効な本のデータがありません。ISBN列にデータがあるか確認してください。');
     }
 
+    await upsertBooksToDatabase(validBooks);
     updateBooks(validBooks);
 
     const duration = Date.now() - startTime;
@@ -339,6 +351,20 @@ export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
 
 export async function ensureBooksLoaded(): Promise<void> {
   if (getBooks().length > 0) return;
+  try {
+    const dbBooks = await loadBooksFromDatabase();
+    if (dbBooks.length > 0) {
+      updateBooks(dbBooks);
+      const dbCategories = await loadCategoriesFromDatabase();
+      if (dbCategories.length > 0) {
+        setCustomCategories(dbCategories);
+      }
+      return;
+    }
+  } catch (error) {
+    console.error('DB load error:', error);
+  }
+
   const SHEET_ID = process.env.GOOGLE_SHEET_ID;
   if (!SHEET_ID) return;
   await syncFromGoogleSheets(SHEET_ID);

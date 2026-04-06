@@ -29,6 +29,10 @@ export function updateBooks(books: Book[]): void {
   cachedBooks = books;
 }
 
+export function setCustomCategories(categories: string[]): void {
+  customCategories = [...new Set(categories.map((c) => c.trim()).filter(Boolean))];
+}
+
 export function updateSyncStatus(status: Partial<SyncStatus>): void {
   syncStatus = { ...syncStatus, ...status };
 }

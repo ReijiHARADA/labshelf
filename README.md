@@ -27,13 +27,22 @@ npm install
 
 ### 2. 環境変数の設定
 
-`.env.example` をコピーして `.env.local` を作成し、必要な値を設定してください。
+`.env.local` に必要な値を設定してください。
 
 ```bash
-cp .env.example .env.local
+GOOGLE_SHEET_ID=your_google_sheet_id
+# 有効なキーがある場合のみ
+# GOOGLE_API_KEY=your_google_api_key
+
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
-### 3. Google スプレッドシートの準備
+### 3. Supabase テーブル作成
+
+Supabase SQL Editor で `supabase/schema.sql` を実行してください。
+
+### 4. Google スプレッドシートの準備
 
 **最小構成（ISBNのみ）:**
 
@@ -62,7 +71,7 @@ cp .env.example .env.local
 | latestFlag | 新着フラグ (TRUE/FALSE) | |
 | memo | メモ | |
 
-### 4. 開発サーバーの起動
+### 5. 開発サーバーの起動
 
 ```bash
 npm run dev
@@ -116,6 +125,11 @@ npm run build
 ```
 
 環境変数を Vercel のダッシュボードで設定してください。
+
+必須:
+- `GOOGLE_SHEET_ID`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
 ## ライセンス
 
