@@ -1,7 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="LabShelf icon">
-  <rect x="4" y="4" width="56" height="56" rx="14" fill="#111111" />
-  <rect x="16" y="18" width="14" height="28" rx="2" fill="#ffffff" />
-  <rect x="34" y="18" width="14" height="28" rx="2" fill="#ffffff" />
-  <rect x="14" y="48" width="36" height="4" rx="2" fill="#ffffff" />
-  <path d="M23 18V46M41 18V46" stroke="#111111" stroke-width="2" />
+<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="18" cy="18" r="18" fill="black" />
+  <path d="M18 13V27" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M9 24C8.73478 24 8.48043 23.8946 8.29289 23.7071C8.10536 23.5196 8 23.2652 8 23V10C8 9.73478 8.10536 9.48043 8.29289 9.29289C8.48043 9.10536 8.73478 9 9 9H14C15.0609 9 16.0783 9.42143 16.8284 10.1716C17.5786 10.9217 18 11.9391 18 13C18 11.9391 18.4214 10.9217 19.1716 10.1716C19.9217 9.42143 20.9391 9 22 9H27C27.2652 9 27.5196 9.10536 27.7071 9.29289C27.8946 9.48043 28 9.73478 28 10V23C28 23.2652 27.8946 23.5196 27.7071 23.7071C27.5196 23.8946 27.2652 24 27 24H21C20.2044 24 19.4413 24.3161 18.8787 24.8787C18.3161 25.4413 18 26.2044 18 27C18 26.2044 17.6839 25.4413 17.1213 24.8787C16.5587 24.3161 15.7956 24 15 24H9Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
 </svg>
