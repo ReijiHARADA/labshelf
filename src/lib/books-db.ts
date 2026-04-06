@@ -112,3 +112,21 @@ export async function loadCategoriesFromDatabase(): Promise<string[]> {
   if (error) throw new Error(`カテゴリ読込に失敗しました: ${error.message}`);
   return (data ?? []).map((row: { name: string }) => row.name);
 }
+
+export async function updateBookCategoryInDatabase(
+  id: string,
+  category: string
+): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from('books')
+    .update({
+      category,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) throw new Error(`カテゴリ更新に失敗しました: ${error.message}`);
+}

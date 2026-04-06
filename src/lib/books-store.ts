@@ -29,6 +29,12 @@ export function updateBooks(books: Book[]): void {
   cachedBooks = books;
 }
 
+export function updateBookInStore(updated: Book): void {
+  const idx = cachedBooks.findIndex((b) => b.id === updated.id);
+  if (idx === -1) return;
+  cachedBooks = [...cachedBooks.slice(0, idx), updated, ...cachedBooks.slice(idx + 1)];
+}
+
 export function setCustomCategories(categories: string[]): void {
   customCategories = [...new Set(categories.map((c) => c.trim()).filter(Boolean))];
 }

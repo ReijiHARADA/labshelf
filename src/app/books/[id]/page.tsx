@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookCover } from '@/components/bookshelf';
+import { BookCategoryEditor } from '@/components/books/book-category-editor';
 import { getBookById, getRelatedBooks } from '@/lib/books-store';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 
@@ -122,23 +123,24 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   </div>
                 </div>
               </div>
-              <div className="flex items-start gap-3 col-span-2">
-                <Tag className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    カテゴリ・タグ
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge>{book.category}</Badge>
-                    {book.tags.map((tag) => (
-                      <Badge key={tag} variant="outline">
-                        {tag}
-                      </Badge>
-                    ))}
+              {book.tags.length > 0 && (
+                <div className="flex items-start gap-3 col-span-2">
+                  <Tag className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">タグ</p>
+                    <div className="flex flex-wrap gap-2">
+                      {book.tags.map((tag) => (
+                        <Badge key={tag} variant="outline">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
+
+            <BookCategoryEditor bookId={book.id} initialCategory={book.category} />
 
             {/* Description */}
             {book.description && (
