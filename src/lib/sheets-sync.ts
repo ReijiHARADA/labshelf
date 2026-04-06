@@ -68,6 +68,11 @@ function normalizeISBN(isbn: string): string {
   return isbn.replace(/[-\s]/g, '');
 }
 
+function shouldRefreshCover(url: string | undefined): boolean {
+  if (!url) return true;
+  return url.includes('books.google.com/books/content');
+}
+
 async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | null> {
   const isbn = row.isbn?.trim();
   
@@ -86,7 +91,7 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
   let coverImageUrl = row.coverImageUrl?.trim();
   let subtitle = row.subtitle?.trim();
   
-  if (!title || !author || !coverImageUrl || !description || !publisher) {
+  if (!title || !author || shouldRefreshCover(coverImageUrl) || !description || !publisher) {
     console.log(`行${index + 2}: ISBN ${normalizedISBN} の情報をAPIから取得中...`);
     const apiData = await fetchBookInfo(normalizedISBN);
     

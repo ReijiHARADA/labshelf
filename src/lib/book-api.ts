@@ -65,6 +65,18 @@ function normalizeISBN(isbn: string): string {
   return isbn.replace(/[-\s]/g, '');
 }
 
+async function fetchOpenLibraryCoverUrl(isbn: string): Promise<string | undefined> {
+  const normalizedISBN = normalizeISBN(isbn);
+  const url = `https://covers.openlibrary.org/b/isbn/${normalizedISBN}-L.jpg?default=false`;
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    if (!response.ok) return undefined;
+    return url;
+  } catch {
+    return undefined;
+  }
+}
+
 function upgradeGoogleBooksCoverUrl(url: string | undefined): string | undefined {
   if (!url) return undefined;
   try {
@@ -196,8 +208,11 @@ export async function fetchBookInfo(isbn: string): Promise<Partial<Book> | null>
     return null;
   }
   
-  const openBDResult = await fetchBookInfoFromOpenBD(normalizedISBN);
-  const googleResult = await fetchBookInfoFromGoogleBooks(normalizedISBN);
+  const [openBDResult, googleResult, openLibraryCoverUrl] = await Promise.all([
+    fetchBookInfoFromOpenBD(normalizedISBN),
+    fetchBookInfoFromGoogleBooks(normalizedISBN),
+    fetchOpenLibraryCoverUrl(normalizedISBN),
+  ]);
 
   if (!openBDResult && !googleResult) {
     return null;
@@ -205,6 +220,10 @@ export async function fetchBookInfo(isbn: string): Promise<Partial<Book> | null>
 
   const primary = openBDResult ?? googleResult ?? {};
   const fallback = googleResult ?? openBDResult ?? {};
+  const bestCoverUrl =
+    openBDResult?.coverImageUrl ||
+    openLibraryCoverUrl ||
+    googleResult?.coverImageUrl;
 
   return {
     isbn: normalizedISBN,
@@ -214,7 +233,7 @@ export async function fetchBookInfo(isbn: string): Promise<Partial<Book> | null>
     publisher: primary.publisher || fallback.publisher || '',
     publishedYear: primary.publishedYear || fallback.publishedYear || new Date().getFullYear(),
     description: primary.description || fallback.description,
-    coverImageUrl: primary.coverImageUrl || fallback.coverImageUrl,
+    coverImageUrl: bestCoverUrl,
     tags: primary.tags || fallback.tags || [],
   };
 }
