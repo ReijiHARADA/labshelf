@@ -21,7 +21,8 @@ create table if not exists public.books (
 
 create table if not exists public.categories (
   name text primary key,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  color text
 );
 
 create index if not exists books_category_idx on public.books (category);

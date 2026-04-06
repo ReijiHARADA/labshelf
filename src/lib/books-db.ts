@@ -90,18 +90,65 @@ export async function loadBooksFromDatabase(): Promise<Book[]> {
   return (data ?? []).map((row) => fromDbRow(row as DbBookRow));
 }
 
-export async function addCategoryToDatabase(category: string): Promise<void> {
+export async function addCategoryToDatabase(
+  category: string,
+  color?: string | null
+): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return;
+
+  const row: { name: string; created_at: string; color?: string | null } = {
+    name: category,
+    created_at: new Date().toISOString(),
+  };
+  if (color !== undefined) {
+    row.color = color;
+  }
+
+  const { error } = await supabase.from('categories').upsert(row, {
+    onConflict: 'name',
+  });
+  if (error) throw new Error(`カテゴリ保存に失敗しました: ${error.message}`);
+}
+
+export async function loadCategoryColorsFromDatabase(): Promise<
+  Record<string, string>
+> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return {};
+
+  const { data, error } = await supabase
+    .from('categories')
+    .select('name, color')
+    .order('name');
+  if (error) throw new Error(`カテゴリ色の読込に失敗しました: ${error.message}`);
+
+  const out: Record<string, string> = {};
+  for (const row of data ?? []) {
+    const r = row as { name: string; color: string | null };
+    if (r.color && typeof r.color === 'string') {
+      out[r.name.trim()] = r.color.trim();
+    }
+  }
+  return out;
+}
+
+export async function updateCategoryColorInDatabase(
+  name: string,
+  color: string
+): Promise<void> {
   const supabase = getSupabaseAdmin();
   if (!supabase) return;
 
   const { error } = await supabase.from('categories').upsert(
     {
-      name: category,
+      name: name.trim(),
+      color: color.trim(),
       created_at: new Date().toISOString(),
     },
     { onConflict: 'name' }
   );
-  if (error) throw new Error(`カテゴリ保存に失敗しました: ${error.message}`);
+  if (error) throw new Error(`カテゴリ色の保存に失敗しました: ${error.message}`);
 }
 
 export async function loadCategoriesFromDatabase(): Promise<string[]> {

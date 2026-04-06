@@ -16,6 +16,7 @@ import { getBooks, getAllCategories } from '@/lib/books-store';
 import { getSpineColor } from '@/lib/spine-colors';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 import { PublicCategoryAdder } from '@/components/categories/public-category-adder';
+import { CategoryColorEditor } from '@/components/categories/category-color-editor';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -68,15 +69,18 @@ export default async function CategoriesPage() {
 
         {/* Categories grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categoryData.map((category, index) => {
+          {categoryData.map((category) => {
             const Icon = category.icon;
             return (
-              <Link
+              <Card
                 key={category.name}
-                href={`/browse?category=${encodeURIComponent(category.name)}`}
+                className="h-full hover:shadow-soft-lg transition-all duration-300 group overflow-hidden"
               >
-                <Card className="h-full hover:shadow-soft-lg transition-all duration-300 group overflow-hidden">
-                  <CardContent className="p-6">
+                <CardContent className="p-6">
+                  <Link
+                    href={`/browse?category=${encodeURIComponent(category.name)}`}
+                    className="block"
+                  >
                     <div className="flex items-start gap-4">
                       <div
                         className="flex h-12 w-12 items-center justify-center rounded-xl text-white flex-shrink-0"
@@ -94,7 +98,6 @@ export default async function CategoriesPage() {
                       </div>
                     </div>
 
-                    {/* Popular books preview */}
                     {category.popularBooks.length > 0 && (
                       <div className="mt-4 pt-4 border-t border-border/50">
                         <p className="text-xs text-muted-foreground mb-2">
@@ -112,9 +115,19 @@ export default async function CategoriesPage() {
                         </ul>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
-              </Link>
+                  </Link>
+
+                  <div className="mt-4 pt-4 border-t border-border/50">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      一覧・背表紙の色（DBに保存）
+                    </p>
+                    <CategoryColorEditor
+                      categoryName={category.name}
+                      displayColor={category.color}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>

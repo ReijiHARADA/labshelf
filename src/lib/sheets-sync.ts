@@ -11,7 +11,9 @@ import {
   loadBooksFromDatabase,
   upsertBooksToDatabase,
   loadCategoriesFromDatabase,
+  loadCategoryColorsFromDatabase,
 } from './books-db';
+import { setCategoryColorOverrides } from './spine-colors';
 
 interface SheetRow {
   id?: string;
@@ -350,6 +352,13 @@ export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
 }
 
 export async function ensureBooksLoaded(): Promise<void> {
+  try {
+    const colorMap = await loadCategoryColorsFromDatabase();
+    setCategoryColorOverrides(colorMap);
+  } catch (error) {
+    console.error('Category colors load error:', error);
+  }
+
   try {
     const dbBooks = await loadBooksFromDatabase();
     if (dbBooks.length > 0) {

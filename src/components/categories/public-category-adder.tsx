@@ -10,6 +10,7 @@ export function PublicCategoryAdder() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [newCategory, setNewCategory] = useState('');
+  const [newColor, setNewColor] = useState('#6366f1');
   const [message, setMessage] = useState<{
     success: boolean;
     text: string;
@@ -29,7 +30,7 @@ export function PublicCategoryAdder() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ category: trimmed }),
+        body: JSON.stringify({ category: trimmed, color: newColor }),
       });
       const data = await response.json();
 
@@ -52,18 +53,33 @@ export function PublicCategoryAdder() {
   return (
     <div className="mb-8 rounded-xl border border-border/60 bg-background/80 p-4">
       <p className="text-sm font-medium mb-3">カテゴリを追加</p>
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
         <Input
           value={newCategory}
           onChange={(e) => setNewCategory(e.target.value)}
           placeholder="例: HCI / 哲学 / 生物学"
-          className="h-10"
+          className="h-10 sm:flex-1"
         />
-        <Button onClick={handleAddCategory} disabled={isPending} className="h-10">
-          <FolderPlus className="h-4 w-4 mr-2" />
-          追加
-        </Button>
+        <div className="flex gap-2 items-center shrink-0">
+          <label className="text-xs text-muted-foreground whitespace-nowrap">
+            色
+          </label>
+          <input
+            type="color"
+            value={newColor}
+            onChange={(e) => setNewColor(e.target.value)}
+            className="h-10 w-12 cursor-pointer rounded border border-border bg-background p-1"
+            aria-label="カテゴリの色"
+          />
+          <Button onClick={handleAddCategory} disabled={isPending} className="h-10">
+            <FolderPlus className="h-4 w-4 mr-2" />
+            追加
+          </Button>
+        </div>
       </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        追加時の色は一覧・背表紙に反映されます（あとからカテゴリカードで変更可）
+      </p>
       {message && (
         <p className={`mt-2 text-sm ${message.success ? 'text-emerald-700' : 'text-red-700'}`}>
           {message.text}
