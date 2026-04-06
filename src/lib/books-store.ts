@@ -1,11 +1,9 @@
 import type { Book, SyncStatus, SyncLog } from '@/types/book';
-import { dummyBooks } from '@/data/dummy-books';
 
-let cachedBooks: Book[] = [...dummyBooks];
+let cachedBooks: Book[] = [];
 let syncStatus: SyncStatus = {
-  lastSyncAt: new Date().toISOString(),
-  status: 'success',
-  bookCount: dummyBooks.length,
+  status: 'idle',
+  bookCount: 0,
 };
 let syncLogs: SyncLog[] = [];
 
