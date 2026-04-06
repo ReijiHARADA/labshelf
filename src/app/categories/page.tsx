@@ -15,6 +15,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { getBooks, getAllCategories } from '@/lib/books-store';
 import { getSpineColor } from '@/lib/spine-colors';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
+import { PublicCategoryAdder } from '@/components/categories/public-category-adder';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -62,6 +63,8 @@ export default async function CategoriesPage() {
             分野別に本を探す
           </p>
         </div>
+
+        <PublicCategoryAdder />
 
         {/* Categories grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

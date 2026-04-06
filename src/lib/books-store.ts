@@ -1,6 +1,7 @@
 import type { Book, SyncStatus, SyncLog } from '@/types/book';
 
 let cachedBooks: Book[] = [];
+let customCategories: string[] = [];
 let syncStatus: SyncStatus = {
   lastSyncAt: '',
   status: 'idle',
@@ -121,7 +122,24 @@ export function sortBooks(
 }
 
 export function getAllCategories(): string[] {
-  return [...new Set(cachedBooks.map((book) => book.category))];
+  const categories = [
+    ...cachedBooks.map((book) => book.category),
+    ...customCategories,
+  ].filter(Boolean);
+  return [...new Set(categories)];
+}
+
+export function addCategory(category: string): { success: boolean; message: string } {
+  const normalized = category.trim();
+  if (!normalized) {
+    return { success: false, message: 'カテゴリ名が空です' };
+  }
+  const exists = getAllCategories().some((c) => c === normalized);
+  if (exists) {
+    return { success: false, message: '同じカテゴリが既に存在します' };
+  }
+  customCategories = [...customCategories, normalized];
+  return { success: true, message: 'カテゴリを追加しました' };
 }
 
 export function getAllTags(): string[] {

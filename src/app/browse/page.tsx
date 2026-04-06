@@ -74,15 +74,8 @@ export default function BrowsePage() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [allBooks, setAllBooks] = useState<Book[]>([]);
-
-  const categories = useMemo(
-    () => [...new Set(allBooks.map((book) => book.category))],
-    [allBooks]
-  );
-  const tags = useMemo(
-    () => [...new Set(allBooks.flatMap((book) => book.tags))],
-    [allBooks]
-  );
+  const [categories, setCategories] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchBooks = async () => {
@@ -91,8 +84,12 @@ export default function BrowsePage() {
         if (!res.ok) return;
         const data = await res.json();
         setAllBooks(Array.isArray(data.books) ? data.books : []);
+        setCategories(Array.isArray(data?.meta?.categories) ? data.meta.categories : []);
+        setTags(Array.isArray(data?.meta?.tags) ? data.meta.tags : []);
       } catch {
         setAllBooks([]);
+        setCategories([]);
+        setTags([]);
       }
     };
 

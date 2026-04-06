@@ -14,6 +14,7 @@ import {
   Link as LinkIcon,
   Save,
   ExternalLink,
+  FolderPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +39,12 @@ export default function AdminPage() {
     bookCount?: number;
   } | null>(null);
   const [books, setBooks] = useState<Book[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState('');
+  const [categoryMessage, setCategoryMessage] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
   const recommendedBooks = books.filter((book) => book.recommended);
   const latestBooks = books.filter((book) => book.latestFlag);
 
@@ -54,6 +61,17 @@ export default function AdminPage() {
     }
   }, []);
 
+  const loadCategories = useCallback(async () => {
+    try {
+      const response = await fetch('/api/categories', { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      setCategories(Array.isArray(data.categories) ? data.categories : []);
+    } catch {
+      setCategories([]);
+    }
+  }, []);
+
   useEffect(() => {
     const savedSheetId = localStorage.getItem(SHEET_ID_KEY);
     if (savedSheetId) {
@@ -61,7 +79,8 @@ export default function AdminPage() {
       setSheetIdInput(savedSheetId);
     }
     loadBooks();
-  }, [loadBooks]);
+    loadCategories();
+  }, [loadBooks, loadCategories]);
 
   const extractSheetId = (input: string): string => {
     const urlMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -149,6 +168,33 @@ export default function AdminPage() {
       });
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleAddCategory = async () => {
+    setCategoryMessage(null);
+    if (!newCategory.trim()) {
+      setCategoryMessage({ success: false, message: 'カテゴリ名を入力してください' });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: newCategory }),
+      });
+      const data = await response.json();
+      setCategoryMessage({
+        success: Boolean(data.success),
+        message: data.message || 'カテゴリ追加に失敗しました',
+      });
+      if (data.success) {
+        setNewCategory('');
+        setCategories(Array.isArray(data.categories) ? data.categories : []);
+      }
+    } catch {
+      setCategoryMessage({ success: false, message: 'カテゴリ追加に失敗しました' });
     }
   };
 
@@ -342,6 +388,10 @@ export default function AdminPage() {
             <TabsTrigger value="featured" className="gap-2">
               <Settings className="h-4 w-4" />
               特集設定
+            </TabsTrigger>
+            <TabsTrigger value="categories" className="gap-2">
+              <FolderPlus className="h-4 w-4" />
+              カテゴリ管理
             </TabsTrigger>
           </TabsList>
 
@@ -554,6 +604,54 @@ export default function AdminPage() {
                     <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">recommended</code> - おすすめ（TRUE/FALSE）</li>
                     <li><code className="bg-muted px-1.5 py-0.5 rounded text-xs">memo</code> - メモ</li>
                   </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Category settings */}
+          <TabsContent value="categories">
+            <Card>
+              <CardHeader>
+                <CardTitle>カテゴリ管理</CardTitle>
+                <CardDescription>
+                  新しいカテゴリを追加できます
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-3">
+                  <Input
+                    placeholder="例: HCI / 哲学 / 生物学"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    className="h-11"
+                  />
+                  <Button className="h-11" onClick={handleAddCategory}>
+                    <FolderPlus className="h-4 w-4 mr-2" />
+                    追加
+                  </Button>
+                </div>
+                {categoryMessage && (
+                  <p
+                    className={`text-sm ${
+                      categoryMessage.success ? 'text-emerald-700' : 'text-red-700'
+                    }`}
+                  >
+                    {categoryMessage.message}
+                  </p>
+                )}
+
+                <div className="pt-2">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    登録済みカテゴリ ({categories.length})
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map((category) => (
+                      <Badge key={category} variant="secondary">
+                        {category}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               </CardContent>
             </Card>
