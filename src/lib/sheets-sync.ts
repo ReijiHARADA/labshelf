@@ -133,7 +133,8 @@ export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
   const errors: string[] = [];
 
   const SHEET_ID = sheetIdParam || process.env.GOOGLE_SHEET_ID;
-  const API_KEY = process.env.GOOGLE_API_KEY;
+  const rawApiKey = process.env.GOOGLE_API_KEY;
+  const API_KEY = rawApiKey && !rawApiKey.includes('your_') && rawApiKey.length > 10 ? rawApiKey : undefined;
 
   updateSyncStatus({ status: 'syncing' });
 
@@ -174,18 +175,74 @@ export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
       });
     } else {
       const text = await response.text();
+      console.log('Raw response (first 1000 chars):', text.substring(0, 1000));
+      
       const jsonStr = text.replace(/^[^(]+\(|\);$/g, '');
       const data = JSON.parse(jsonStr);
-      const cols = data.table.cols.map((col: { label: string }) => col.label?.toLowerCase().trim() || '');
-      rows = data.table.rows.map((row: { c: Array<{ v: unknown } | null> }) => {
+      
+      console.log('Parsed data structure:', JSON.stringify(data.table, null, 2));
+      
+      const cols = data.table.cols;
+      const tableRows = data.table.rows || [];
+      const parsedNumHeaders = data.table.parsedNumHeaders || 0;
+      
+      if (!tableRows || tableRows.length === 0) {
+        throw new Error('スプレッドシートにデータがありません');
+      }
+      
+      let headers: string[] = [];
+      let dataRows = tableRows;
+      
+      const hasLabelHeaders = cols.some((col: { label?: string }) => col.label && col.label.trim() !== '');
+      
+      if (hasLabelHeaders) {
+        headers = cols.map((col: { label?: string; id?: string }) => 
+          (col.label || col.id || '').toLowerCase().trim()
+        );
+        console.log('Using column labels as headers:', headers);
+      } else {
+        const firstRowValues = tableRows[0]?.c?.map((cell: { v?: unknown } | null) => 
+          cell?.v?.toString().toLowerCase().trim() || ''
+        ) || [];
+        
+        const looksLikeHeader = firstRowValues.some((val: string) => 
+          val === 'isbn' || val === 'title' || val === 'author' || val === 'タイトル' || val === '著者'
+        );
+        
+        if (looksLikeHeader) {
+          headers = firstRowValues;
+          dataRows = tableRows.slice(1);
+          console.log('First row used as headers:', headers);
+        } else {
+          headers = cols.map((_: unknown, idx: number) => idx === 0 ? 'isbn' : `col${idx}`);
+          console.log('No headers found, assuming first column is ISBN:', headers);
+        }
+      }
+      
+      console.log('Headers:', headers);
+      console.log('Data rows count:', dataRows.length);
+      
+      const isbnColIndex = headers.findIndex(h => h === 'isbn' || h.includes('isbn'));
+      
+      if (isbnColIndex === -1) {
+        headers[0] = 'isbn';
+        console.log('ISBN column not found, using first column as ISBN');
+      }
+      
+      rows = dataRows.map((row: { c: Array<{ v?: unknown } | null> }) => {
         const obj: Record<string, string> = {};
-        cols.forEach((col: string, i: number) => {
-          if (col) {
-            obj[col] = row.c[i]?.v?.toString() || '';
+        headers.forEach((header: string, i: number) => {
+          if (header && row.c && row.c[i]) {
+            obj[header] = row.c[i]?.v?.toString() || '';
           }
         });
         return obj as unknown as SheetRow;
       });
+      
+      console.log('Parsed rows:', rows.length);
+      if (rows.length > 0) {
+        console.log('First parsed row:', JSON.stringify(rows[0]));
+      }
     }
 
     console.log(`${rows.length}行のデータを取得しました`);
@@ -195,7 +252,10 @@ export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       
+      console.log(`Processing row ${i}:`, JSON.stringify(row));
+      
       if (!row.isbn?.trim()) {
+        console.log(`Row ${i}: No ISBN found`);
         continue;
       }
       
@@ -203,6 +263,7 @@ export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
         const book = await enrichBookWithAPI(row, i);
         if (book) {
           validBooks.push(book);
+          console.log(`Row ${i}: Successfully processed - ${book.title}`);
         }
       } catch (error) {
         const errorMsg = `行${i + 2}: 処理エラー - ${error instanceof Error ? error.message : '不明'}`;
@@ -248,6 +309,8 @@ export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
   } catch (error) {
     const duration = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+
+    console.error('Sync error:', errorMessage);
 
     const log: SyncLog = {
       id: Date.now().toString(),
