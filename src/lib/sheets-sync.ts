@@ -86,7 +86,7 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
   let coverImageUrl = row.coverImageUrl?.trim();
   let subtitle = row.subtitle?.trim();
   
-  if (!title || !author) {
+  if (!title || !author || !coverImageUrl || !description || !publisher) {
     console.log(`行${index + 2}: ISBN ${normalizedISBN} の情報をAPIから取得中...`);
     const apiData = await fetchBookInfo(normalizedISBN);
     
@@ -350,7 +350,6 @@ export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
 }
 
 export async function ensureBooksLoaded(): Promise<void> {
-  if (getBooks().length > 0) return;
   try {
     const dbBooks = await loadBooksFromDatabase();
     if (dbBooks.length > 0) {
@@ -364,6 +363,8 @@ export async function ensureBooksLoaded(): Promise<void> {
   } catch (error) {
     console.error('DB load error:', error);
   }
+
+  if (getBooks().length > 0) return;
 
   const SHEET_ID = process.env.GOOGLE_SHEET_ID;
   if (!SHEET_ID) return;

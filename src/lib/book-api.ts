@@ -94,6 +94,10 @@ export async function fetchBookInfoFromGoogleBooks(isbn: string): Promise<Partia
       }
     }
     
+    const imageLink =
+      volume.imageLinks?.thumbnail ||
+      volume.imageLinks?.smallThumbnail;
+
     return {
       isbn: normalizedISBN,
       title: volume.title || '',
@@ -102,7 +106,7 @@ export async function fetchBookInfoFromGoogleBooks(isbn: string): Promise<Partia
       publisher: volume.publisher || '',
       publishedYear,
       description: volume.description,
-      coverImageUrl: volume.imageLinks?.thumbnail?.replace('http:', 'https:'),
+      coverImageUrl: imageLink?.replace('http:', 'https:'),
       tags: volume.categories || [],
     };
   } catch (error) {
@@ -177,16 +181,26 @@ export async function fetchBookInfo(isbn: string): Promise<Partial<Book> | null>
   }
   
   const openBDResult = await fetchBookInfoFromOpenBD(normalizedISBN);
-  if (openBDResult && openBDResult.title) {
-    return openBDResult;
-  }
-  
   const googleResult = await fetchBookInfoFromGoogleBooks(normalizedISBN);
-  if (googleResult && googleResult.title) {
-    return googleResult;
+
+  if (!openBDResult && !googleResult) {
+    return null;
   }
-  
-  return null;
+
+  const primary = openBDResult ?? googleResult ?? {};
+  const fallback = googleResult ?? openBDResult ?? {};
+
+  return {
+    isbn: normalizedISBN,
+    title: primary.title || fallback.title || '',
+    subtitle: primary.subtitle || fallback.subtitle,
+    author: primary.author || fallback.author || '',
+    publisher: primary.publisher || fallback.publisher || '',
+    publishedYear: primary.publishedYear || fallback.publishedYear || new Date().getFullYear(),
+    description: primary.description || fallback.description,
+    coverImageUrl: primary.coverImageUrl || fallback.coverImageUrl,
+    tags: primary.tags || fallback.tags || [],
+  };
 }
 
 export async function fetchMultipleBookInfo(
