@@ -26,6 +26,8 @@ export default function ScanPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
   const scanningRef = useRef(false);
+  const ingestingRef = useRef(false);
+  const lastSubmittedRef = useRef<{ isbn: string; at: number } | null>(null);
 
   const [status, setStatus] = useState<ScanStatus>({ type: 'idle' });
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -118,6 +120,7 @@ export default function ScanPage() {
     if (!isbn13) return;
     scanningRef.current = false;
     setStatus({ type: 'found', isbn: isbn13 });
+    void addIsbn(isbn13);
   }
 
   function runBarcodeDetectorLoop() {
@@ -189,9 +192,18 @@ export default function ScanPage() {
   }
 
   async function addIsbn(isbn13: string) {
+    if (ingestingRef.current) return;
+    const now = Date.now();
+    const last = lastSubmittedRef.current;
+    if (last && last.isbn === isbn13 && now - last.at < 3000) {
+      return;
+    }
+    lastSubmittedRef.current = { isbn: isbn13, at: now };
+    ingestingRef.current = true;
     setResult(null);
     if (!token.trim()) {
       setResult({ ok: false, message: '共有トークンを入力してください' });
+      ingestingRef.current = false;
       return;
     }
     try {
@@ -214,12 +226,14 @@ export default function ScanPage() {
       const added = Array.isArray(data?.added) ? data.added : [];
       const skipped = Array.isArray(data?.skipped) ? data.skipped : [];
       const invalid = Array.isArray(data?.invalid) ? data.invalid : [];
+      const hasAdded = added.length > 0;
+      const hasSkipped = skipped.length > 0;
       setResult({
-        ok: Boolean(data?.success),
+        ok: hasAdded && Boolean(data?.success),
         message:
-          added.length > 0
+          hasAdded
             ? '追加しました'
-            : skipped.length > 0
+            : hasSkipped
               ? '既に登録済みです'
               : '追加できませんでした',
         added,
@@ -232,6 +246,7 @@ export default function ScanPage() {
         message: e instanceof Error ? e.message : '追加に失敗しました',
       });
     } finally {
+      ingestingRef.current = false;
       // 同じカメラ起動状態のまま次の本を読み取れるように再開する。
       window.setTimeout(() => {
         void resumeScanning();
@@ -327,11 +342,11 @@ export default function ScanPage() {
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">検出したISBN</p>
                   <p className="font-mono text-lg truncate">{foundIsbn}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    自動で追加しています...
+                  </p>
                 </div>
-                <Button onClick={() => addIsbn(foundIsbn)}>
-                  <BookPlus className="h-4 w-4 mr-2" />
-                  追加
-                </Button>
+                <BookPlus className="h-5 w-5 text-muted-foreground" />
               </div>
             )}
           </CardContent>
