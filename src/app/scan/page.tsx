@@ -318,6 +318,8 @@ export default function ScanPage() {
   }
 
   const foundIsbn = status.type === 'found' ? status.isbn : '';
+  const isCameraOn =
+    status.type === 'running' || status.type === 'found' || status.type === 'error';
   const frameClass =
     status.type === 'found'
       ? 'border-emerald-400'
@@ -362,7 +364,7 @@ export default function ScanPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
               <div className="flex-1">
                 <label className="text-sm font-medium">使用するカメラ</label>
                 <select
@@ -382,13 +384,19 @@ export default function ScanPage() {
                   ))}
                 </select>
               </div>
-              <div className="flex gap-2 pt-6 sm:pt-0">
-                <Button onClick={startCamera} disabled={status.type === 'starting'}>
+              <div className="shrink-0">
+                <Button
+                  className="h-11 min-w-28"
+                  onClick={isCameraOn ? stopCamera : startCamera}
+                  disabled={status.type === 'starting'}
+                  variant={isCameraOn ? 'outline' : 'default'}
+                >
                   <Camera className="h-4 w-4 mr-2" />
-                  {status.type === 'running' ? '再起動' : '開始'}
-                </Button>
-                <Button variant="outline" onClick={stopCamera}>
-                  停止
+                  {status.type === 'starting'
+                    ? '起動中...'
+                    : isCameraOn
+                      ? '停止'
+                      : '開始'}
                 </Button>
               </div>
             </div>
