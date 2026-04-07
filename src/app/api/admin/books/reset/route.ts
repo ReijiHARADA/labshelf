@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const RESET_PASSWORD = 'admin';
-const RESET_CONFIRM = 'DELETE ALL BOOKS';
+const RESET_CONFIRM = 'delete';
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));

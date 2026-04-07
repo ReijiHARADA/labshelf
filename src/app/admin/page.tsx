@@ -207,7 +207,7 @@ export default function AdminPage() {
   };
 
   const canSubmitReset =
-    resetPassword === 'admin' && resetConfirmText === 'DELETE ALL BOOKS';
+    resetPassword === 'admin' && resetConfirmText === 'delete';
 
   const handleResetBooks = async () => {
     setResetResult(null);
@@ -715,17 +715,17 @@ export default function AdminPage() {
           </TabsContent>
         </Tabs>
 
-        <Card className="mt-10 border-red-300 bg-red-50/40">
+        <Card className="mt-10 border-zinc-700 bg-zinc-950 text-zinc-100">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-800">
+            <CardTitle className="flex items-center gap-2 text-zinc-100">
               <Trash2 className="h-5 w-5" />
               危険操作: DB蔵書データ全削除
             </CardTitle>
-            <CardDescription className="text-red-700/90">
+            <CardDescription className="text-zinc-300">
               この操作は元に戻せません。実行にはパスワード
-              <code className="mx-1 rounded bg-red-100 px-1.5 py-0.5 text-xs">admin</code>
+              <code className="mx-1 rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-100">admin</code>
               と確認キーワード
-              <code className="mx-1 rounded bg-red-100 px-1.5 py-0.5 text-xs">DELETE ALL BOOKS</code>
+              <code className="mx-1 rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-100">delete</code>
               の両方が必要です。
             </CardDescription>
           </CardHeader>
@@ -736,13 +736,13 @@ export default function AdminPage() {
                 placeholder="パスワード (admin)"
                 value={resetPassword}
                 onChange={(e) => setResetPassword(e.target.value)}
-                className="h-11 bg-white"
+                className="h-11 border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500"
               />
               <Input
-                placeholder="確認キーワード: DELETE ALL BOOKS"
+                placeholder="確認キーワード: delete"
                 value={resetConfirmText}
                 onChange={(e) => setResetConfirmText(e.target.value)}
-                className="h-11 bg-white"
+                className="h-11 border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500"
               />
             </div>
             <div className="flex items-center gap-3">
@@ -759,14 +759,14 @@ export default function AdminPage() {
                 )}
                 {isResetting ? '削除中...' : 'DBを全削除'}
               </Button>
-              <p className="text-xs text-red-700/80">
+              <p className="text-xs text-zinc-400">
                 条件が一致した時のみ削除ボタンが有効になります
               </p>
             </div>
             {resetResult && (
               <p
                 className={`text-sm ${
-                  resetResult.success ? 'text-emerald-700' : 'text-red-700'
+                  resetResult.success ? 'text-emerald-400' : 'text-red-400'
                 }`}
               >
                 {resetResult.message}
