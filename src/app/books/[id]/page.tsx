@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookCover } from '@/components/bookshelf';
 import { BookCategoryEditor } from '@/components/books/book-category-editor';
+import { BookCoverUploader } from '@/components/books/book-cover-uploader';
 import { getBookById, getRelatedBooks } from '@/lib/books-store';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 
@@ -59,6 +60,9 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                 imageQuality={95}
                 className="w-full max-w-[260px] mx-auto lg:mx-0 h-auto aspect-[2/3]"
               />
+              <div className="mt-3 max-w-[260px] mx-auto lg:mx-0">
+                <BookCoverUploader bookId={book.id} />
+              </div>
 
               {/* Badges */}
               <div className="flex flex-wrap gap-2 mt-4 justify-center lg:justify-start">

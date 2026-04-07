@@ -757,9 +757,6 @@ export default function AdminPage() {
                 )}
                 {isResetting ? '削除中...' : 'DBを全削除'}
               </Button>
-              <p className="text-xs text-zinc-400">
-                条件が一致した時のみ削除ボタンが有効になります
-              </p>
             </div>
             {resetResult && (
               <p

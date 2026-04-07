@@ -124,6 +124,12 @@ export default function ScanPage() {
     refreshDevices();
   }, [refreshDevices]);
 
+  useEffect(() => {
+    return () => {
+      void stopCamera();
+    };
+  }, []);
+
   async function startCamera() {
     setResult(null);
     setStatus({ type: 'starting' });

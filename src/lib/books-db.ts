@@ -247,6 +247,24 @@ export async function updateBookCategoryInDatabase(
   if (error) throw new Error(`カテゴリ更新に失敗しました: ${error.message}`);
 }
 
+export async function updateBookCoverInDatabase(
+  id: string,
+  coverImageUrl: string
+): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from('books')
+    .update({
+      cover_image_url: coverImageUrl,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) throw new Error(`表紙画像更新に失敗しました: ${error.message}`);
+}
+
 export async function bulkUpdateBookCategoryInDatabase(
   fromCategory: string,
   toCategory: string
