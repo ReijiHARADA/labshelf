@@ -158,8 +158,6 @@ export default function ScanPage() {
     setLastRaw(raw);
     const isbn13 = normalizeToIsbn13(raw);
     if (!isbn13) return;
-    scanningRef.current = false;
-    setStatus({ type: 'found', isbn: isbn13 });
     void addIsbn(isbn13);
   }
 
@@ -242,6 +240,8 @@ export default function ScanPage() {
     if (last && last.isbn === isbn13 && now - last.at < 3000) {
       return;
     }
+    scanningRef.current = false;
+    setStatus({ type: 'found', isbn: isbn13 });
     lastSubmittedRef.current = { isbn: isbn13, at: now };
     ingestingRef.current = true;
     setResult(null);
