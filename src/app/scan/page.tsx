@@ -286,26 +286,36 @@ export default function ScanPage() {
       const added = Array.isArray(data?.added) ? data.added : [];
       const skipped = Array.isArray(data?.skipped) ? data.skipped : [];
       const invalid = Array.isArray(data?.invalid) ? data.invalid : [];
+      const sheetError =
+        typeof data?.sheet?.error === 'string' ? data.sheet.error : undefined;
+      const hasSheetError = Boolean(sheetError);
       const hasAdded = added.length > 0;
       const hasSkipped = skipped.length > 0;
       setResult({
-        ok: hasAdded && Boolean(data?.success),
-        tone: hasAdded ? 'success' : hasSkipped ? 'warning' : 'error',
+        ok: hasAdded && Boolean(data?.success) && !hasSheetError,
+        tone: hasSheetError
+          ? 'error'
+          : hasAdded
+            ? 'success'
+            : hasSkipped
+              ? 'warning'
+              : 'error',
         title: hasAdded
-          ? '登録完了'
+          ? hasSheetError
+            ? '一部失敗（スプレッドシート未反映）'
+            : '登録完了'
           : hasSkipped
             ? '既に登録済み'
             : '追加に失敗しました',
         message:
-          hasAdded
+          hasAdded && !hasSheetError
             ? 'データベースとスプレッドシートへ追加しました'
+            : hasAdded && hasSheetError
+              ? 'データベースへの追加は成功しましたが、スプレッドシート追記に失敗しました'
             : hasSkipped
               ? 'このISBNは既に登録済みのためスキップしました'
               : '追加できませんでした',
-        detail:
-          typeof data?.sheet?.error === 'string'
-            ? data.sheet.error
-            : undefined,
+        detail: sheetError,
         added,
         skipped,
         invalid,
