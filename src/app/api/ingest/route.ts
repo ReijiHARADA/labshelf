@@ -3,7 +3,7 @@ import type { Book } from '@/types/book';
 import { fetchBookInfo } from '@/lib/book-api';
 import { normalizeToIsbn13 } from '@/lib/isbn';
 import { findExistingIsbns, upsertBooksToDatabase } from '@/lib/books-db';
-import { appendIsbnsToSheet } from '@/lib/sheets-append';
+import { appendItemsToSheet } from '@/lib/sheets-append';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -110,8 +110,10 @@ export async function POST(request: NextRequest) {
     await upsertBooksToDatabase(books);
   }
 
+  const sheetResult = await appendItemsToSheet(
+    books.map((b) => ({ isbn: b.isbn, title: b.title }))
+  );
   const appendedIsbns = books.map((b) => b.isbn);
-  const sheetResult = await appendIsbnsToSheet(appendedIsbns);
 
   return NextResponse.json({
     success: errors.length === 0 && sheetResult.ok,

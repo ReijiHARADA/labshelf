@@ -2,6 +2,11 @@ type AppendResult =
   | { ok: true; appended: string[] }
   | { ok: false; error: string };
 
+export type SheetAppendItem = {
+  isbn: string;
+  title?: string;
+};
+
 function buildCandidateUrls(rawUrl: string, token: string): string[] {
   const trimmed = rawUrl.trim();
   const set = new Set<string>();
@@ -26,11 +31,17 @@ function buildCandidateUrls(rawUrl: string, token: string): string[] {
   return [...set];
 }
 
-export async function appendIsbnsToSheet(isbns: string[]): Promise<AppendResult> {
+export async function appendItemsToSheet(items: SheetAppendItem[]): Promise<AppendResult> {
   const rawUrl = process.env.GOOGLE_SHEETS_APPEND_URL;
   const token = process.env.LABSHELF_INGEST_TOKEN;
 
-  const unique = [...new Set(isbns.map((v) => v.trim()).filter(Boolean))];
+  const uniqMap = new Map<string, SheetAppendItem>();
+  for (const item of items) {
+    const isbn = (item?.isbn || '').trim();
+    if (!isbn) continue;
+    if (!uniqMap.has(isbn)) uniqMap.set(isbn, { isbn, title: item.title });
+  }
+  const unique = [...uniqMap.values()];
   if (unique.length === 0) return { ok: true, appended: [] };
 
   if (!rawUrl) {
@@ -54,7 +65,7 @@ export async function appendIsbnsToSheet(isbns: string[]): Promise<AppendResult>
         'Content-Type': 'application/json',
         'X-LabShelf-Token': token,
       },
-      body: JSON.stringify({ isbns: unique }),
+      body: JSON.stringify({ items: unique }),
     }).catch((e) => {
       throw new Error(e instanceof Error ? e.message : 'GASへの接続に失敗しました');
     });
@@ -84,10 +95,15 @@ export async function appendIsbnsToSheet(isbns: string[]): Promise<AppendResult>
 
     const appended = Array.isArray(data.appended)
       ? data.appended.map((v: unknown) => String(v))
-      : unique;
+      : unique.map((i) => i.isbn);
     return { ok: true, appended };
   }
 
   return { ok: false, error: lastError };
+}
+
+// 互換: 旧API（ISBN配列）も残す
+export async function appendIsbnsToSheet(isbns: string[]): Promise<AppendResult> {
+  return appendItemsToSheet(isbns.map((isbn) => ({ isbn })));
 }
 

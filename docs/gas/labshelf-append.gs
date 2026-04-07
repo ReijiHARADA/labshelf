@@ -1,9 +1,9 @@
 /**
- * LabShelf: 通し番号(A列) + ISBN(B列) 追記用 Webアプリ
+ * LabShelf: 通し番号(A列) + ISBN(B列) + タイトル(C列) 追記用 Webアプリ
  *
- * - 対象: A1=no, B1=isbn
- * - A2以降: 通し番号, B2以降: ISBN
- * - POST(JSON): { "isbns": ["978...","978..."] }
+ * - 対象: A1=no, B1=isbn, C1=title
+ * - A2以降: 通し番号, B2以降: ISBN, C2以降: タイトル
+ * - POST(JSON): { "items": [{ "isbn": "978...", "title": "..." }, ...] }
  * - Header: X-LabShelf-Token: <shared token>
  *
  * 事前に以下をスクリプトプロパティに設定:
@@ -51,15 +51,19 @@ function doPost(e) {
       } catch (_) {
         body = {};
       }
-      var isbns = Array.isArray(body.isbns) ? body.isbns : [];
+      var items = Array.isArray(body.items) ? body.items : [];
       var cleaned = [];
       var seen = {};
-      for (var i = 0; i < isbns.length; i++) {
-        var v = String(isbns[i] || '').replace(/[^0-9]/g, '');
-        if (!v) continue;
-        if (seen[v]) continue;
-        seen[v] = true;
-        cleaned.push(v);
+      for (var i = 0; i < items.length; i++) {
+        var it = items[i] || {};
+        var rawIsbn = String(it.isbn || '').replace(/[^0-9]/g, '');
+        if (!rawIsbn) continue;
+        if (seen[rawIsbn]) continue;
+        seen[rawIsbn] = true;
+        cleaned.push({
+          isbn: rawIsbn,
+          title: String(it.title || '').trim(),
+        });
       }
       if (cleaned.length === 0) {
         return json_({ ok: true, appended: [] }, 200);
@@ -71,14 +75,17 @@ function doPost(e) {
       var lastRow = sheet.getLastRow();
       var nextNo = getNextSerial_(sheet, lastRow);
       var startRow = Math.max(lastRow + 1, 2);
-      var values = cleaned.map(function (isbn) {
-        var row = [nextNo, isbn];
+      var values = cleaned.map(function (it) {
+        var row = [nextNo, it.isbn, it.title || ''];
         nextNo += 1;
         return row;
       });
-      sheet.getRange(startRow, 1, values.length, 2).setValues(values);
+      sheet.getRange(startRow, 1, values.length, 3).setValues(values);
 
-      return json_({ ok: true, appended: cleaned }, 200);
+      return json_({
+        ok: true,
+        appended: cleaned.map(function (x) { return x.isbn; }),
+      }, 200);
     } finally {
       lock.releaseLock();
     }
@@ -94,9 +101,13 @@ function doPost(e) {
 function normalizeSheetFormat_(sheet) {
   var hA = String(sheet.getRange(1, 1).getValue() || '').trim().toLowerCase();
   var hB = String(sheet.getRange(1, 2).getValue() || '').trim().toLowerCase();
+  var hC = String(sheet.getRange(1, 3).getValue() || '').trim().toLowerCase();
 
   // 新フォーマットなら何もしない
-  if ((hA === 'no' || hA === 'id' || hA === '番号') && hB === 'isbn') return;
+  if ((hA === 'no' || hA === 'id' || hA === '番号') && hB === 'isbn' && (hC === 'title' || hC === '')) {
+    if (!hC) sheet.getRange(1, 3).setValue('title');
+    return;
+  }
 
   // 旧フォーマット: A1=isbn, B列空
   if (hA === 'isbn' && !hB) {
@@ -107,22 +118,24 @@ function normalizeSheetFormat_(sheet) {
       for (var i = 0; i < aVals.length; i++) {
         var isbn = String(aVals[i][0] || '').replace(/[^0-9]/g, '');
         if (!isbn) continue;
-        converted.push([i + 1, isbn]);
+        converted.push([i + 1, isbn, '']);
       }
-      sheet.getRange(2, 1, lastRow - 1, 2).clearContent();
+      sheet.getRange(2, 1, lastRow - 1, 3).clearContent();
       if (converted.length > 0) {
-        sheet.getRange(2, 1, converted.length, 2).setValues(converted);
+        sheet.getRange(2, 1, converted.length, 3).setValues(converted);
       }
     }
     sheet.getRange(1, 1).setValue('no');
     sheet.getRange(1, 2).setValue('isbn');
+    sheet.getRange(1, 3).setValue('title');
     return;
   }
 
   // 何も無いシートなどはヘッダだけ整える
-  if (!hA && !hB) {
+  if (!hA && !hB && !hC) {
     sheet.getRange(1, 1).setValue('no');
     sheet.getRange(1, 2).setValue('isbn');
+    sheet.getRange(1, 3).setValue('title');
     return;
   }
 }
