@@ -83,8 +83,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           {/* Right column - Details */}
           <div className="lg:col-span-2 space-y-6">
             {/* Info */}
-            <Card>
-              <CardContent className="space-y-5 pt-6">
+            <section className="space-y-5 pt-1">
                 {/* Title */}
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-bold">{book.title}</h1>
@@ -195,8 +194,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                     </div>
                   </>
                 )}
-              </CardContent>
-            </Card>
+            </section>
 
             {/* Loan */}
             <Card className="border-dashed">

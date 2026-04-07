@@ -22,8 +22,9 @@ export function BookLoanEditor({
   loanMemo,
 }: Props) {
   const router = useRouter();
+  const today = new Date().toISOString().slice(0, 10);
   const [name, setName] = useState(borrowedBy ?? '');
-  const [due, setDue] = useState(dueDate ?? '');
+  const [due, setDue] = useState(dueDate ?? today);
   const [memo, setMemo] = useState(loanMemo ?? '');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -88,7 +89,7 @@ export function BookLoanEditor({
       <div className="rounded-md border p-3 bg-muted/20">
         <p className="text-xs text-muted-foreground">現在の状態</p>
         <p className="font-medium mt-1">
-          {isBorrowed ? `貸出中（${borrowedBy}）` : '在庫あり'}
+          {isBorrowed ? `貸出中（${borrowedBy}）` : '書架にあります'}
         </p>
         {borrowedAt && (
           <p className="text-xs text-muted-foreground mt-1">
