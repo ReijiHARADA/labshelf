@@ -17,8 +17,7 @@ import { getSpineColor } from '@/lib/spine-colors';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 import { PublicCategoryAdder } from '@/components/categories/public-category-adder';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
 
 const categoryIcons: Record<string, React.ElementType> = {
   'プログラミング': Code,

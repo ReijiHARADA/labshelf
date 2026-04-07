@@ -90,8 +90,8 @@ export default function BrowsePage() {
       setLoading(true);
       try {
         const [booksRes, categoriesRes] = await Promise.all([
-          fetch('/api/books?limit=1000', { cache: 'no-store' }),
-          fetch('/api/categories', { cache: 'no-store' }),
+          fetch('/api/books?limit=1000'),
+          fetch('/api/categories'),
         ]);
         if (!booksRes.ok) return;
         const data = await booksRes.json();
