@@ -83,10 +83,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           <div className="lg:col-span-2 space-y-6">
             {/* Info */}
             <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">本の情報</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-5">
+              <CardContent className="space-y-5 pt-6">
                 {/* Title */}
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-bold">{book.title}</h1>
