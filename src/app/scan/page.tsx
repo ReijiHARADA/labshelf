@@ -25,6 +25,7 @@ export default function ScanPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
+  const scanningRef = useRef(false);
 
   const [status, setStatus] = useState<ScanStatus>({ type: 'idle' });
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -51,6 +52,7 @@ export default function ScanPage() {
   }, [token]);
 
   async function stopCamera() {
+    scanningRef.current = false;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
     if (streamRef.current) {
@@ -94,6 +96,7 @@ export default function ScanPage() {
 
       await refreshDevices();
 
+      scanningRef.current = true;
       setStatus({ type: 'running' });
 
       if (supportsDetector) {
@@ -113,6 +116,7 @@ export default function ScanPage() {
     setLastRaw(raw);
     const isbn13 = normalizeToIsbn13(raw);
     if (!isbn13) return;
+    scanningRef.current = false;
     setStatus({ type: 'found', isbn: isbn13 });
   }
 
@@ -126,7 +130,7 @@ export default function ScanPage() {
     });
 
     const tick = async () => {
-      if (!videoRef.current || status.type !== 'running') return;
+      if (!videoRef.current || !scanningRef.current) return;
       try {
         const codes = await detector.detect(video);
         const v = codes?.[0]?.rawValue;
@@ -150,21 +154,26 @@ export default function ScanPage() {
     const { BrowserMultiFormatReader } = mod;
     const reader = new BrowserMultiFormatReader();
 
-    try {
-      const result = await reader.decodeOnceFromVideoDevice(
-        deviceId || undefined,
-        video
-      );
-      if (result?.getText) {
-        reportFound(result.getText());
+    const decode = async () => {
+      if (!scanningRef.current) return;
+      try {
+        const result = await reader.decodeOnceFromVideoDevice(
+          deviceId || undefined,
+          video
+        );
+        if (result?.getText) {
+          reportFound(result.getText());
+          return;
+        }
+      } catch {
+        // keep trying while camera is running
       }
-    } catch (e) {
-      setStatus({
-        type: 'error',
-        message:
-          e instanceof Error ? e.message : 'バーコードの読み取りに失敗しました',
-      });
-    }
+      if (scanningRef.current) {
+        window.setTimeout(decode, 200);
+      }
+    };
+
+    void decode();
   }
 
   async function addIsbn(isbn13: string) {
