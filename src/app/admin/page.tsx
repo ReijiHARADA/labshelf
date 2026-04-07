@@ -15,7 +15,6 @@ import {
   Save,
   ExternalLink,
   FolderPlus,
-  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,12 +42,6 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState('');
   const [categoryMessage, setCategoryMessage] = useState<{
-    success: boolean;
-    message: string;
-  } | null>(null);
-  const [resetPassword, setResetPassword] = useState('');
-  const [isResetting, setIsResetting] = useState(false);
-  const [resetResult, setResetResult] = useState<{
     success: boolean;
     message: string;
   } | null>(null);
@@ -205,45 +198,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleResetBooks = async () => {
-    setResetResult(null);
-    if (!resetPassword.trim()) {
-      setResetResult({ success: false, message: 'パスワードを入力してください' });
-      return;
-    }
-
-    const ok = window.confirm(
-      'DB上の蔵書データを全件削除します。元に戻せません。続行しますか？'
-    );
-    if (!ok) return;
-
-    setIsResetting(true);
-    try {
-      const response = await fetch('/api/admin/books/reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: resetPassword }),
-      });
-      const data = await response.json().catch(() => ({}));
-      const success = Boolean(data?.success) && response.ok;
-      setResetResult({
-        success,
-        message: data?.message || (success ? '削除しました' : '削除に失敗しました'),
-      });
-      if (success) {
-        setResetPassword('');
-        await loadBooks();
-      }
-    } catch (error) {
-      setResetResult({
-        success: false,
-        message: error instanceof Error ? error.message : '削除に失敗しました',
-      });
-    } finally {
-      setIsResetting(false);
-    }
-  };
-
   const booksWithIssues = books.filter(
     (book) => !book.isbn || !book.description
   );
@@ -326,51 +280,6 @@ export default function AdminPage() {
             {!sheetId && (
               <p className="mt-3 text-sm text-amber-600">
                 スプレッドシートIDを設定すると同期が有効になります
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="mb-8 border-red-200 bg-red-50/40">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-700">
-              <Trash2 className="h-5 w-5" />
-              DB全削除（検証用）
-            </CardTitle>
-            <CardDescription>
-              データベース上の本データを全件削除します。パスワードは <code>admin</code> です。
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex gap-3">
-              <Input
-                type="password"
-                placeholder="パスワードを入力"
-                value={resetPassword}
-                onChange={(e) => setResetPassword(e.target.value)}
-                className="h-11 bg-white"
-              />
-              <Button
-                variant="destructive"
-                className="h-11"
-                onClick={handleResetBooks}
-                disabled={isResetting}
-              >
-                {isResetting ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4 mr-2" />
-                )}
-                {isResetting ? '削除中...' : '全件削除'}
-              </Button>
-            </div>
-            {resetResult && (
-              <p
-                className={`text-sm ${
-                  resetResult.success ? 'text-emerald-700' : 'text-red-700'
-                }`}
-              >
-                {resetResult.message}
               </p>
             )}
           </CardContent>
