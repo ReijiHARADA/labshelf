@@ -119,6 +119,18 @@ export async function loadBooksFromDatabase(): Promise<Book[]> {
   return (data ?? []).map((row) => fromDbRow(row as DbBookRow));
 }
 
+export async function deleteAllBooksFromDatabase(): Promise<number> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return 0;
+
+  const { count, error } = await supabase
+    .from('books')
+    .delete({ count: 'exact' })
+    .neq('id', '');
+  if (error) throw new Error(`DB全削除に失敗しました: ${error.message}`);
+  return count ?? 0;
+}
+
 export async function addCategoryToDatabase(
   category: string,
   color?: string | null

@@ -15,6 +15,7 @@ import {
   Save,
   ExternalLink,
   FolderPlus,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +43,13 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState('');
   const [categoryMessage, setCategoryMessage] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetResult, setResetResult] = useState<{
     success: boolean;
     message: string;
   } | null>(null);
@@ -195,6 +203,55 @@ export default function AdminPage() {
       }
     } catch {
       setCategoryMessage({ success: false, message: 'カテゴリ追加に失敗しました' });
+    }
+  };
+
+  const canSubmitReset =
+    resetPassword === 'admin' && resetConfirmText === 'DELETE ALL BOOKS';
+
+  const handleResetBooks = async () => {
+    setResetResult(null);
+    if (!canSubmitReset) {
+      setResetResult({
+        success: false,
+        message: 'パスワードと確認キーワードを正しく入力してください',
+      });
+      return;
+    }
+
+    const ok = window.confirm(
+      '警告: データベース上の蔵書データを全件削除します。元に戻せません。続行しますか？'
+    );
+    if (!ok) return;
+
+    setIsResetting(true);
+    try {
+      const response = await fetch('/api/admin/books/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password: resetPassword,
+          confirmText: resetConfirmText,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      const success = Boolean(data?.success) && response.ok;
+      setResetResult({
+        success,
+        message: data?.message || (success ? '削除しました' : '削除に失敗しました'),
+      });
+      if (success) {
+        setResetPassword('');
+        setResetConfirmText('');
+        await loadBooks();
+      }
+    } catch (error) {
+      setResetResult({
+        success: false,
+        message: error instanceof Error ? error.message : '削除に失敗しました',
+      });
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -657,6 +714,66 @@ export default function AdminPage() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <Card className="mt-10 border-red-300 bg-red-50/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-800">
+              <Trash2 className="h-5 w-5" />
+              危険操作: DB蔵書データ全削除
+            </CardTitle>
+            <CardDescription className="text-red-700/90">
+              この操作は元に戻せません。実行にはパスワード
+              <code className="mx-1 rounded bg-red-100 px-1.5 py-0.5 text-xs">admin</code>
+              と確認キーワード
+              <code className="mx-1 rounded bg-red-100 px-1.5 py-0.5 text-xs">DELETE ALL BOOKS</code>
+              の両方が必要です。
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <Input
+                type="password"
+                placeholder="パスワード (admin)"
+                value={resetPassword}
+                onChange={(e) => setResetPassword(e.target.value)}
+                className="h-11 bg-white"
+              />
+              <Input
+                placeholder="確認キーワード: DELETE ALL BOOKS"
+                value={resetConfirmText}
+                onChange={(e) => setResetConfirmText(e.target.value)}
+                className="h-11 bg-white"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="destructive"
+                className="h-11"
+                onClick={handleResetBooks}
+                disabled={isResetting || !canSubmitReset}
+              >
+                {isResetting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                {isResetting ? '削除中...' : 'DBを全削除'}
+              </Button>
+              <p className="text-xs text-red-700/80">
+                条件が一致した時のみ削除ボタンが有効になります
+              </p>
+            </div>
+            {resetResult && (
+              <p
+                className={`text-sm ${
+                  resetResult.success ? 'text-emerald-700' : 'text-red-700'
+                }`}
+              >
+                {resetResult.message}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
