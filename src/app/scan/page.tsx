@@ -165,11 +165,11 @@ export default function ScanPage() {
     }
   }
 
-  function reportFound(raw: string) {
+  async function reportFound(raw: string): Promise<boolean> {
     setLastRaw(raw);
     const isbn13 = normalizeToIsbn13(raw);
-    if (!isbn13) return;
-    void addIsbn(isbn13);
+    if (!isbn13) return false;
+    return addIsbn(isbn13);
   }
 
   function runBarcodeDetectorLoop() {
@@ -191,8 +191,8 @@ export default function ScanPage() {
           video.videoHeight || video.clientHeight || 0
         );
         if (v) {
-          reportFound(v);
-          return;
+          const accepted = await reportFound(v);
+          if (accepted) return;
         }
       } catch {
         // ignore and keep scanning
@@ -218,8 +218,8 @@ export default function ScanPage() {
           video
         );
         if (result?.getText) {
-          reportFound(result.getText());
-          return;
+          const accepted = await reportFound(result.getText());
+          if (accepted) return;
         }
       } catch {
         // keep trying while camera is running
@@ -244,12 +244,12 @@ export default function ScanPage() {
     }
   }
 
-  async function addIsbn(isbn13: string) {
-    if (ingestingRef.current) return;
+  async function addIsbn(isbn13: string): Promise<boolean> {
+    if (ingestingRef.current) return false;
     const now = Date.now();
     const last = lastSubmittedRef.current;
     if (last && last.isbn === isbn13 && now - last.at < 3000) {
-      return;
+      return false;
     }
     scanningRef.current = false;
     setStatus({ type: 'found', isbn: isbn13 });
@@ -264,7 +264,7 @@ export default function ScanPage() {
         message: '共有トークンを入力してください',
       });
       ingestingRef.current = false;
-      return;
+      return true;
     }
     try {
       const res = await fetch('/api/ingest', {
@@ -287,7 +287,7 @@ export default function ScanPage() {
               ? data.sheet.error
               : undefined,
         });
-        return;
+        return true;
       }
       const added = Array.isArray(data?.added) ? data.added : [];
       const skipped = Array.isArray(data?.skipped) ? data.skipped : [];
@@ -326,6 +326,7 @@ export default function ScanPage() {
         skipped,
         invalid,
       });
+      return true;
     } catch (e) {
       setResult({
         ok: false,
@@ -334,6 +335,7 @@ export default function ScanPage() {
         message: e instanceof Error ? e.message : '追加に失敗しました',
         detail: undefined,
       });
+      return true;
     } finally {
       ingestingRef.current = false;
       // 同じカメラ起動状態のまま次の本を読み取れるように再開する。
@@ -341,6 +343,7 @@ export default function ScanPage() {
         void resumeScanning();
       }, 600);
     }
+    return true;
   }
 
   const foundIsbn = status.type === 'found' ? status.isbn : '';
