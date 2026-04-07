@@ -105,14 +105,14 @@ export async function DELETE(
   await ensureBooksLoaded();
   const { name } = await context.params;
   const target = decodeURIComponent(name).trim();
-  const fallback = 'その他';
+  const fallback = '未分類';
 
   if (!target) {
     return NextResponse.json({ error: 'カテゴリ名が不正です' }, { status: 400 });
   }
   if (target === fallback) {
     return NextResponse.json(
-      { error: '「その他」は削除できません' },
+      { error: '「未分類」は削除できません' },
       { status: 400 }
     );
   }

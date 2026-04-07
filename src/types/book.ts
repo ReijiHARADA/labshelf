@@ -54,7 +54,7 @@ export type BookCategory =
   | 'ビジネス'
   | '研究手法'
   | '論文執筆'
-  | 'その他';
+  | '未分類';
 
 export type SortOption = 'latest' | 'title' | 'author' | 'popular' | 'year';
 

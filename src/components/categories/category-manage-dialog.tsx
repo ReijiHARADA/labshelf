@@ -83,7 +83,7 @@ export function CategoryManageDialog({
   };
 
   const handleDelete = async () => {
-    if (!confirm(`カテゴリ「${category}」を削除します。所属本は「その他」に移動します。`)) {
+    if (!confirm(`カテゴリ「${category}」を削除します。所属本は「未分類」に移動します。`)) {
       return;
     }
     setLoadingDelete(true);
@@ -98,7 +98,7 @@ export function CategoryManageDialog({
         return;
       }
       const fallback =
-        typeof data?.fallbackCategory === 'string' ? data.fallbackCategory : 'その他';
+        typeof data?.fallbackCategory === 'string' ? data.fallbackCategory : '未分類';
       onDeleted?.(category, fallback);
       setOpen(false);
       router.refresh();

@@ -183,7 +183,7 @@ export function renameCategoryInStore(
 
 export function deleteCategoryInStore(
   name: string,
-  fallbackCategory = 'その他'
+  fallbackCategory = '未分類'
 ): { success: boolean; message: string; movedBooks: number } {
   const target = name.trim();
   if (!target) {

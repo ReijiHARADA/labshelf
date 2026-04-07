@@ -28,7 +28,8 @@ const categoryIcons: Record<string, React.ElementType> = {
   'ビジネス': Briefcase,
   '研究手法': FlaskConical,
   '論文執筆': FileText,
-  'その他': MoreHorizontal,
+  未分類: MoreHorizontal,
+  その他: MoreHorizontal,
 };
 
 export default async function CategoriesPage() {

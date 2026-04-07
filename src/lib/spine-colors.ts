@@ -9,6 +9,7 @@ export const categoryColors: Record<BookCategory | string, string> = {
   ビジネス: 'var(--spine-orange)',
   研究手法: 'var(--spine-green)',
   論文執筆: 'var(--spine-brown)',
+  未分類: 'var(--spine-gray)',
   その他: 'var(--spine-gray)',
 };
 

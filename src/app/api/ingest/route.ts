@@ -28,7 +28,7 @@ function toBookFromApi(isbn13: string, apiData: Partial<Book> | null): Book | nu
     author: apiData.author || '不明',
     publisher: apiData.publisher || '',
     publishedYear: apiData.publishedYear || new Date().getFullYear(),
-    category: 'その他',
+    category: '未分類',
     tags: apiData.tags || [],
     description: apiData.description,
     toc: apiData.toc,
