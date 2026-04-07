@@ -36,6 +36,12 @@ GOOGLE_SHEET_ID=your_google_sheet_id
 
 SUPABASE_URL=https://xxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# インターネット公開時の最低限ガード（研究室内で共有するトークン）
+LABSHELF_INGEST_TOKEN=your_shared_token
+
+# GAS Webアプリ（スプレッドシートA列にISBNを追記する）
+GOOGLE_SHEETS_APPEND_URL=https://script.google.com/macros/s/xxxxx/exec
 ```
 
 ### 3. Supabase テーブル作成
@@ -71,6 +77,17 @@ Supabase SQL Editor で `supabase/schema.sql` を実行してください。
 | latestFlag | 新着フラグ (TRUE/FALSE) | |
 | memo | メモ | |
 
+### 4.5. （推奨）GASで「追記」Webアプリを用意
+
+スプレッドシートを「誰でも閲覧可」で運用しつつ、スキャン画面から **A列末尾にISBNを追記**するために、GAS Webアプリを使う構成を推奨します。
+
+- **スクリプト例**: `docs/gas/labshelf-append.gs`
+- **スクリプトプロパティ**（GASの設定）:
+  - `LABSHELF_TOKEN`: `LABSHELF_INGEST_TOKEN` と同じ値
+  - `SPREADSHEET_ID`: 対象スプレッドシートID
+  - `SHEET_NAME`: 例 `シート1`
+- **デプロイ**: 「ウェブアプリ」としてデプロイし、発行されたURLを `GOOGLE_SHEETS_APPEND_URL` に設定します。
+
 ### 5. 開発サーバーの起動
 
 ```bash
@@ -88,6 +105,7 @@ npm run dev
 | `/api/isbn/[isbn]` | GET | ISBNから書籍情報を取得 |
 | `/api/sync` | GET | 同期ステータス取得 |
 | `/api/sync` | POST | 手動同期実行 |
+| `/api/ingest` | POST | ISBNを追加（DB + スプレッドシート追記） |
 
 ### ISBN検索API
 

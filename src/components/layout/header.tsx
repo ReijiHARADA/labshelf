@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Search, Settings, Menu, X } from 'lucide-react';
+import { BookOpen, Search, Settings, Menu, X, ScanLine } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ const navigation = [
   { name: 'ホーム', href: '/' },
   { name: '一覧', href: '/browse' },
   { name: 'カテゴリ', href: '/categories' },
+  { name: 'スキャン', href: '/scan' },
 ];
 
 export function Header() {
@@ -71,6 +72,17 @@ export function Header() {
               <Link href="/admin">
                 <Settings className="h-4.5 w-4.5" />
                 <span className="sr-only">管理</span>
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden sm:flex h-9 w-9 rounded-lg"
+              asChild
+            >
+              <Link href="/scan">
+                <ScanLine className="h-4.5 w-4.5" />
+                <span className="sr-only">スキャン</span>
               </Link>
             </Button>
 

@@ -85,6 +85,28 @@ export async function upsertBooksToDatabase(books: Book[]): Promise<void> {
   if (error) throw new Error(`DB保存に失敗しました: ${error.message}`);
 }
 
+export async function findExistingIsbns(isbns: string[]): Promise<Set<string>> {
+  const normalized = [...new Set(isbns.map((v) => v.trim()).filter(Boolean))];
+  if (normalized.length === 0) return new Set();
+
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return new Set();
+
+  const { data, error } = await supabase
+    .from('books')
+    .select('isbn')
+    .in('isbn', normalized);
+
+  if (error) throw new Error(`DB照会に失敗しました: ${error.message}`);
+
+  const out = new Set<string>();
+  for (const row of data ?? []) {
+    const isbn = (row as { isbn?: string }).isbn;
+    if (isbn) out.add(isbn);
+  }
+  return out;
+}
+
 export async function loadBooksFromDatabase(): Promise<Book[]> {
   const supabase = getSupabaseAdmin();
   if (!supabase) return [];
