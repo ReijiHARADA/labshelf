@@ -16,6 +16,8 @@ type ScanStatus =
   | { type: 'found'; isbn: string };
 
 const TOKEN_KEY = 'labshelf_ingest_token';
+type ResultTone = 'success' | 'warning' | 'error';
+
 const GUIDE_WIDTH_RATIO = 0.72;
 const GUIDE_HEIGHT_RATIO = 0.34;
 
@@ -76,6 +78,8 @@ export default function ScanPage() {
   const [lastRaw, setLastRaw] = useState<string>('');
   const [result, setResult] = useState<{
     ok: boolean;
+    tone: ResultTone;
+    title: string;
     message: string;
     added?: string[];
     skipped?: string[];
@@ -246,7 +250,12 @@ export default function ScanPage() {
     ingestingRef.current = true;
     setResult(null);
     if (!token.trim()) {
-      setResult({ ok: false, message: '共有トークンを入力してください' });
+      setResult({
+        ok: false,
+        tone: 'error',
+        title: '送信できません',
+        message: '共有トークンを入力してください',
+      });
       ingestingRef.current = false;
       return;
     }
@@ -263,6 +272,8 @@ export default function ScanPage() {
       if (!res.ok) {
         setResult({
           ok: false,
+          tone: 'error',
+          title: '追加に失敗しました',
           message: data?.error || `追加に失敗しました (${res.status})`,
         });
         return;
@@ -274,11 +285,17 @@ export default function ScanPage() {
       const hasSkipped = skipped.length > 0;
       setResult({
         ok: hasAdded && Boolean(data?.success),
+        tone: hasAdded ? 'success' : hasSkipped ? 'warning' : 'error',
+        title: hasAdded
+          ? '登録完了'
+          : hasSkipped
+            ? '既に登録済み'
+            : '追加に失敗しました',
         message:
           hasAdded
-            ? '追加しました'
+            ? 'データベースとスプレッドシートへ追加しました'
             : hasSkipped
-              ? '既に登録済みです'
+              ? 'このISBNは既に登録済みのためスキップしました'
               : '追加できませんでした',
         added,
         skipped,
@@ -287,6 +304,8 @@ export default function ScanPage() {
     } catch (e) {
       setResult({
         ok: false,
+        tone: 'error',
+        title: '追加に失敗しました',
         message: e instanceof Error ? e.message : '追加に失敗しました',
       });
     } finally {
@@ -299,6 +318,20 @@ export default function ScanPage() {
   }
 
   const foundIsbn = status.type === 'found' ? status.isbn : '';
+  const frameClass =
+    status.type === 'found'
+      ? 'border-emerald-400'
+      : status.type === 'error'
+        ? 'border-red-400'
+        : result?.tone === 'success'
+          ? 'border-emerald-400'
+          : result?.tone === 'warning'
+            ? 'border-amber-400'
+            : result?.tone === 'error'
+              ? 'border-red-400'
+              : status.type === 'running'
+                ? 'border-sky-400'
+                : 'border-border';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -360,7 +393,7 @@ export default function ScanPage() {
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-xl border bg-black/95">
+            <div className={cn('relative overflow-hidden rounded-xl border-2 bg-black/95 transition-colors', frameClass)}>
               <video
                 ref={videoRef}
                 className="w-full h-[320px] sm:h-[420px] object-contain"
@@ -409,18 +442,21 @@ export default function ScanPage() {
           <div
             className={cn(
               'rounded-lg border p-4 text-sm flex items-start gap-2',
-              result.ok
+              result.tone === 'success'
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                : 'bg-red-50 border-red-200 text-red-900'
+                : result.tone === 'warning'
+                  ? 'bg-amber-50 border-amber-200 text-amber-900'
+                  : 'bg-red-50 border-red-200 text-red-900'
             )}
           >
-            {result.ok ? (
+            {result.tone === 'success' ? (
               <CheckCircle2 className="h-5 w-5 mt-0.5" />
             ) : (
               <AlertCircle className="h-5 w-5 mt-0.5" />
             )}
             <div className="space-y-1">
-              <div className="font-medium">{result.message}</div>
+              <div className="font-semibold">{result.title}</div>
+              <div>{result.message}</div>
               {result.added?.length ? (
                 <div>追加: {result.added.join(', ')}</div>
               ) : null}

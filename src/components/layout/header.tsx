@@ -11,7 +11,6 @@ const navigation = [
   { name: 'ホーム', href: '/' },
   { name: '一覧', href: '/browse' },
   { name: 'カテゴリ', href: '/categories' },
-  { name: 'スキャン', href: '/scan' },
 ];
 
 export function Header() {
