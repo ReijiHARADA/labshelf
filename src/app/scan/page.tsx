@@ -176,6 +176,18 @@ export default function ScanPage() {
     void decode();
   }
 
+  async function resumeScanning() {
+    if (!streamRef.current || !videoRef.current) return;
+    if (status.type === 'starting') return;
+    scanningRef.current = true;
+    setStatus({ type: 'running' });
+    if (supportsDetector) {
+      runBarcodeDetectorLoop();
+    } else {
+      await runZxingLoop();
+    }
+  }
+
   async function addIsbn(isbn13: string) {
     setResult(null);
     if (!token.trim()) {
@@ -219,6 +231,11 @@ export default function ScanPage() {
         ok: false,
         message: e instanceof Error ? e.message : '追加に失敗しました',
       });
+    } finally {
+      // 同じカメラ起動状態のまま次の本を読み取れるように再開する。
+      window.setTimeout(() => {
+        void resumeScanning();
+      }, 600);
     }
   }
 
