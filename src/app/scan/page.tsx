@@ -81,6 +81,7 @@ export default function ScanPage() {
     tone: ResultTone;
     title: string;
     message: string;
+    detail?: string;
     added?: string[];
     skipped?: string[];
     invalid?: string[];
@@ -275,6 +276,10 @@ export default function ScanPage() {
           tone: 'error',
           title: '追加に失敗しました',
           message: data?.error || `追加に失敗しました (${res.status})`,
+          detail:
+            typeof data?.sheet?.error === 'string'
+              ? data.sheet.error
+              : undefined,
         });
         return;
       }
@@ -297,6 +302,10 @@ export default function ScanPage() {
             : hasSkipped
               ? 'このISBNは既に登録済みのためスキップしました'
               : '追加できませんでした',
+        detail:
+          typeof data?.sheet?.error === 'string'
+            ? data.sheet.error
+            : undefined,
         added,
         skipped,
         invalid,
@@ -307,6 +316,7 @@ export default function ScanPage() {
         tone: 'error',
         title: '追加に失敗しました',
         message: e instanceof Error ? e.message : '追加に失敗しました',
+        detail: undefined,
       });
     } finally {
       ingestingRef.current = false;
@@ -389,7 +399,7 @@ export default function ScanPage() {
                   className="h-11 min-w-28"
                   onClick={isCameraOn ? stopCamera : startCamera}
                   disabled={status.type === 'starting'}
-                  variant={isCameraOn ? 'outline' : 'default'}
+                  variant={isCameraOn ? 'destructive' : 'default'}
                 >
                   <Camera className="h-4 w-4 mr-2" />
                   {status.type === 'starting'
@@ -465,6 +475,11 @@ export default function ScanPage() {
             <div className="space-y-1">
               <div className="font-semibold">{result.title}</div>
               <div>{result.message}</div>
+              {result.detail ? (
+                <div className="text-xs opacity-90 break-all">
+                  原因詳細: {result.detail}
+                </div>
+              ) : null}
               {result.added?.length ? (
                 <div>追加: {result.added.join(', ')}</div>
               ) : null}
