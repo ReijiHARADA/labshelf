@@ -95,7 +95,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                       </Badge>
                     ) : (
                       <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
-                        在庫あり
+                        書架にあります
                       </Badge>
                     )}
                   </div>
@@ -198,6 +198,25 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               </CardContent>
             </Card>
 
+            {/* Loan */}
+            <Card className="border-dashed">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">貸出</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  誰が借りているかの管理と、貸出・返却の操作を行えます。
+                </p>
+                <BookLoanEditor
+                  bookId={book.id}
+                  borrowedBy={book.borrowedBy}
+                  borrowedAt={book.borrowedAt}
+                  dueDate={book.dueDate}
+                  loanMemo={book.loanMemo}
+                />
+              </CardContent>
+            </Card>
+
             {/* Edit */}
             <Card className="border-dashed">
               <CardHeader className="pb-4">
@@ -206,18 +225,8 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               <CardContent className="space-y-5">
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">
-                    カテゴリ設定・貸出状態・表紙画像の更新を行えます。
+                    カテゴリ設定と表紙画像の更新を行えます。
                   </p>
-                  <BookLoanEditor
-                    bookId={book.id}
-                    borrowedBy={book.borrowedBy}
-                    borrowedAt={book.borrowedAt}
-                    dueDate={book.dueDate}
-                    loanMemo={book.loanMemo}
-                  />
-                </div>
-                <Separator />
-                <div>
                   <BookCategoryEditor bookId={book.id} initialCategory={book.category} />
                 </div>
                 <Separator />
