@@ -16,9 +16,49 @@ type ScanStatus =
   | { type: 'found'; isbn: string };
 
 const TOKEN_KEY = 'labshelf_ingest_token';
+const GUIDE_WIDTH_RATIO = 0.72;
+const GUIDE_HEIGHT_RATIO = 0.34;
 
 function hasBarcodeDetector(): boolean {
   return typeof window !== 'undefined' && 'BarcodeDetector' in window;
+}
+
+type DetectedCodeLike = {
+  rawValue?: string;
+  boundingBox?: { x: number; y: number; width: number; height: number };
+};
+
+function isInsideGuide(
+  box: { x: number; y: number; width: number; height: number } | undefined,
+  width: number,
+  height: number
+): boolean {
+  if (!box || width <= 0 || height <= 0) return true;
+
+  const gx = width * (1 - GUIDE_WIDTH_RATIO) * 0.5;
+  const gy = height * (1 - GUIDE_HEIGHT_RATIO) * 0.5;
+  const gw = width * GUIDE_WIDTH_RATIO;
+  const gh = height * GUIDE_HEIGHT_RATIO;
+
+  const cx = box.x + box.width * 0.5;
+  const cy = box.y + box.height * 0.5;
+  return cx >= gx && cx <= gx + gw && cy >= gy && cy <= gy + gh;
+}
+
+function pickGuideCandidate(
+  codes: DetectedCodeLike[] | undefined,
+  width: number,
+  height: number
+): string | null {
+  if (!codes || codes.length === 0) return null;
+  for (const code of codes) {
+    const raw = code.rawValue || '';
+    if (!raw) continue;
+    if (!isInsideGuide(code.boundingBox, width, height)) continue;
+    if (!normalizeToIsbn13(raw)) continue;
+    return raw;
+  }
+  return null;
 }
 
 export default function ScanPage() {
@@ -135,8 +175,12 @@ export default function ScanPage() {
     const tick = async () => {
       if (!videoRef.current || !scanningRef.current) return;
       try {
-        const codes = await detector.detect(video);
-        const v = codes?.[0]?.rawValue;
+        const codes = (await detector.detect(video)) as DetectedCodeLike[];
+        const v = pickGuideCandidate(
+          codes,
+          video.videoWidth || video.clientWidth || 0,
+          video.videoHeight || video.clientHeight || 0
+        );
         if (v) {
           reportFound(v);
           return;
@@ -316,13 +360,22 @@ export default function ScanPage() {
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-xl border bg-black/95">
+            <div className="relative overflow-hidden rounded-xl border bg-black/95">
               <video
                 ref={videoRef}
                 className="w-full h-[320px] sm:h-[420px] object-contain"
                 muted
                 playsInline
               />
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div
+                  className="rounded-lg border-2 border-emerald-300/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]"
+                  style={{
+                    width: `${GUIDE_WIDTH_RATIO * 100}%`,
+                    height: `${GUIDE_HEIGHT_RATIO * 100}%`,
+                  }}
+                />
+              </div>
             </div>
 
             {status.type === 'error' && (
@@ -347,29 +400,6 @@ export default function ScanPage() {
                   </p>
                 </div>
                 <BookPlus className="h-5 w-5 text-muted-foreground" />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>共有トークン</CardTitle>
-            <CardDescription>
-              研究室内で共有するトークンです（この端末のローカルに保存されます）。
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col sm:flex-row gap-3 sm:items-center">
-            <Input
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="例: labshelf-xxxx"
-              className="h-11"
-            />
-            {token && (
-              <div className="text-sm text-emerald-700 flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4" />
-                保存済み
               </div>
             )}
           </CardContent>
@@ -403,6 +433,30 @@ export default function ScanPage() {
             </div>
           </div>
         )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>共有トークン</CardTitle>
+            <CardDescription>
+              研究室内で共有するトークンです（この端末のローカルに保存されます）。
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col sm:flex-row gap-3 sm:items-center">
+            <Input
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="例: labshelf-xxxx"
+              className="h-11"
+            />
+            {token && (
+              <div className="text-sm text-emerald-700 flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                保存済み
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
       </div>
     </div>
   );
