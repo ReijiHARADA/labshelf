@@ -60,9 +60,6 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                 imageQuality={95}
                 className="w-full max-w-[260px] mx-auto lg:mx-0 h-auto aspect-[2/3]"
               />
-              <div className="mt-3 max-w-[260px] mx-auto lg:mx-0">
-                <BookCoverUploader bookId={book.id} />
-              </div>
 
               {/* Badges */}
               <div className="flex flex-wrap gap-2 mt-4 justify-center lg:justify-start">
@@ -84,81 +81,108 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
           {/* Right column - Details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Title */}
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold">{book.title}</h1>
-              {book.subtitle && (
-                <p className="text-lg text-muted-foreground mt-1">
-                  {book.subtitle}
-                </p>
-              )}
-              <p className="text-lg mt-3">{book.author}</p>
-            </div>
-
-            <Separator />
-
-            {/* Metadata */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-start gap-3">
-                <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
+            {/* Info */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">本の情報</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {/* Title */}
                 <div>
-                  <p className="text-sm text-muted-foreground">出版社</p>
-                  <p className="font-medium">{book.publisher}</p>
+                  <h1 className="text-2xl sm:text-3xl font-bold">{book.title}</h1>
+                  {book.subtitle && (
+                    <p className="text-lg text-muted-foreground mt-1">
+                      {book.subtitle}
+                    </p>
+                  )}
+                  <p className="text-lg mt-3">{book.author}</p>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">出版年</p>
-                  <p className="font-medium">{book.publishedYear}年</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 col-span-2">
-                <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground">ISBN</p>
-                  <div className="flex items-center gap-2">
-                    <code className="font-medium bg-muted px-2 py-0.5 rounded text-sm">
-                      {book.isbn}
-                    </code>
-                    <Button variant="ghost" size="icon" className="h-7 w-7">
-                      <Copy className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              {book.tags.length > 0 && (
-                <div className="flex items-start gap-3 col-span-2">
-                  <Tag className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">タグ</p>
-                    <div className="flex flex-wrap gap-2">
-                      {book.tags.map((tag) => (
-                        <Badge key={tag} variant="outline">
-                          {tag}
-                        </Badge>
-                      ))}
+
+                <Separator />
+
+                {/* Metadata */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-start gap-3">
+                    <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">出版社</p>
+                      <p className="font-medium">{book.publisher}</p>
                     </div>
                   </div>
+                  <div className="flex items-start gap-3">
+                    <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">出版年</p>
+                      <p className="font-medium">{book.publishedYear}年</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 col-span-2">
+                    <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-muted-foreground">ISBN</p>
+                      <div className="flex items-center gap-2">
+                        <code className="font-medium bg-muted px-2 py-0.5 rounded text-sm">
+                          {book.isbn}
+                        </code>
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  {book.tags.length > 0 && (
+                    <div className="flex items-start gap-3 col-span-2">
+                      <Tag className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2">タグ</p>
+                        <div className="flex flex-wrap gap-2">
+                          {book.tags.map((tag) => (
+                            <Badge key={tag} variant="outline">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <BookCategoryEditor bookId={book.id} initialCategory={book.category} />
+                {/* Description */}
+                {book.description && (
+                  <>
+                    <Separator />
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <h2 className="font-semibold">概要</h2>
+                      </div>
+                      <p className="text-muted-foreground leading-relaxed">
+                        {book.description}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
 
-            {/* Description */}
-            {book.description && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">概要</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {book.description}
+            {/* Edit */}
+            <Card className="border-dashed">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">修正</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    カテゴリ設定と表紙画像の更新を行えます。
                   </p>
-                </CardContent>
-              </Card>
-            )}
+                  <BookCategoryEditor bookId={book.id} initialCategory={book.category} />
+                </div>
+                <Separator />
+                <div className="max-w-sm">
+                  <BookCoverUploader bookId={book.id} />
+                </div>
+              </CardContent>
+            </Card>
 
             {/* TOC */}
             {book.toc && (
