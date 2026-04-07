@@ -1,7 +1,8 @@
 /**
- * LabShelf: ISBN(A列) 追記用 Webアプリ
+ * LabShelf: 通し番号(A列) + ISBN(B列) 追記用 Webアプリ
  *
- * - 対象: A1=isbn, A2以降にISBNが縦に並ぶシート
+ * - 対象: A1=no, B1=isbn
+ * - A2以降: 通し番号, B2以降: ISBN
  * - POST(JSON): { "isbns": ["978...","978..."] }
  * - Header: X-LabShelf-Token: <shared token>
  *
@@ -64,11 +65,18 @@ function doPost(e) {
         return json_({ ok: true, appended: [] }, 200);
       }
 
-      // 末尾にまとめて追記（A列のみ）
+      normalizeSheetFormat_(sheet);
+
+      // 既存の通し番号から次番号を計算
       var lastRow = sheet.getLastRow();
+      var nextNo = getNextSerial_(sheet, lastRow);
       var startRow = Math.max(lastRow + 1, 2);
-      var values = cleaned.map(function (x) { return [x]; });
-      sheet.getRange(startRow, 1, values.length, 1).setValues(values);
+      var values = cleaned.map(function (isbn) {
+        var row = [nextNo, isbn];
+        nextNo += 1;
+        return row;
+      });
+      sheet.getRange(startRow, 1, values.length, 2).setValues(values);
 
       return json_({ ok: true, appended: cleaned }, 200);
     } finally {
@@ -77,6 +85,57 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: String(err) }, 500);
   }
+}
+
+/**
+ * 旧フォーマット(A1=isbn, A列にISBN)を
+ * 新フォーマット(A列=通し番号, B列=ISBN)へ一度だけ整形する。
+ */
+function normalizeSheetFormat_(sheet) {
+  var hA = String(sheet.getRange(1, 1).getValue() || '').trim().toLowerCase();
+  var hB = String(sheet.getRange(1, 2).getValue() || '').trim().toLowerCase();
+
+  // 新フォーマットなら何もしない
+  if ((hA === 'no' || hA === 'id' || hA === '番号') && hB === 'isbn') return;
+
+  // 旧フォーマット: A1=isbn, B列空
+  if (hA === 'isbn' && !hB) {
+    var lastRow = sheet.getLastRow();
+    if (lastRow >= 2) {
+      var aVals = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      var converted = [];
+      for (var i = 0; i < aVals.length; i++) {
+        var isbn = String(aVals[i][0] || '').replace(/[^0-9]/g, '');
+        if (!isbn) continue;
+        converted.push([i + 1, isbn]);
+      }
+      sheet.getRange(2, 1, lastRow - 1, 2).clearContent();
+      if (converted.length > 0) {
+        sheet.getRange(2, 1, converted.length, 2).setValues(converted);
+      }
+    }
+    sheet.getRange(1, 1).setValue('no');
+    sheet.getRange(1, 2).setValue('isbn');
+    return;
+  }
+
+  // 何も無いシートなどはヘッダだけ整える
+  if (!hA && !hB) {
+    sheet.getRange(1, 1).setValue('no');
+    sheet.getRange(1, 2).setValue('isbn');
+    return;
+  }
+}
+
+function getNextSerial_(sheet, lastRow) {
+  if (lastRow < 2) return 1;
+  var nums = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  var maxNo = 0;
+  for (var i = 0; i < nums.length; i++) {
+    var n = parseInt(String(nums[i][0] || ''), 10);
+    if (!isNaN(n) && n > maxNo) maxNo = n;
+  }
+  return maxNo + 1;
 }
 
 function json_(obj, status) {

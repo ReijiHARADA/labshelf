@@ -722,9 +722,7 @@ export default function AdminPage() {
               危険操作: DB蔵書データ全削除
             </CardTitle>
             <CardDescription className="text-zinc-300">
-              この操作は元に戻せません。実行にはパスワード
-              <code className="mx-1 rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-100">admin</code>
-              と確認キーワード
+              この操作は元に戻せません。実行には管理者パスワードと確認キーワード
               <code className="mx-1 rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-100">delete</code>
               の両方が必要です。
             </CardDescription>
@@ -733,7 +731,7 @@ export default function AdminPage() {
             <div className="grid gap-3 md:grid-cols-2">
               <Input
                 type="password"
-                placeholder="パスワード (admin)"
+                placeholder="管理者パスワード"
                 value={resetPassword}
                 onChange={(e) => setResetPassword(e.target.value)}
                 className="h-11 border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500"
