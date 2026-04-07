@@ -17,6 +17,10 @@ export interface Book {
   createdAt: string;
   updatedAt: string;
   memo?: string;
+  borrowedBy?: string;
+  borrowedAt?: string;
+  dueDate?: string;
+  loanMemo?: string;
 }
 
 export interface BookSpineStyle {

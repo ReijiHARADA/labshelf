@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookCover } from '@/components/bookshelf';
 import { BookCategoryEditor } from '@/components/books/book-category-editor';
 import { BookCoverUploader } from '@/components/books/book-cover-uploader';
+import { BookLoanEditor } from '@/components/books/book-loan-editor';
 import { getBookById, getRelatedBooks } from '@/lib/books-store';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 
@@ -87,6 +88,17 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                 {/* Title */}
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-bold">{book.title}</h1>
+                  <div className="mt-2">
+                    {book.borrowedBy ? (
+                      <Badge className="bg-rose-100 text-rose-800 border-rose-200">
+                        貸出中: {book.borrowedBy}
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                        在庫あり
+                      </Badge>
+                    )}
+                  </div>
                   {book.subtitle && (
                     <p className="text-lg text-muted-foreground mt-1">
                       {book.subtitle}
@@ -144,6 +156,30 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   )}
                 </div>
 
+                {(book.borrowedAt || book.dueDate || book.loanMemo) && (
+                  <>
+                    <Separator />
+                    <div className="space-y-1">
+                      <h2 className="font-semibold">利用状況</h2>
+                      {book.borrowedAt && (
+                        <p className="text-sm text-muted-foreground">
+                          貸出日: {new Date(book.borrowedAt).toLocaleDateString('ja-JP')}
+                        </p>
+                      )}
+                      {book.dueDate && (
+                        <p className="text-sm text-muted-foreground">
+                          返却予定日: {book.dueDate}
+                        </p>
+                      )}
+                      {book.loanMemo && (
+                        <p className="text-sm text-muted-foreground">
+                          貸出メモ: {book.loanMemo}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+
                 {/* Description */}
                 {book.description && (
                   <>
@@ -170,8 +206,18 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               <CardContent className="space-y-5">
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">
-                    カテゴリ設定と表紙画像の更新を行えます。
+                    カテゴリ設定・貸出状態・表紙画像の更新を行えます。
                   </p>
+                  <BookLoanEditor
+                    bookId={book.id}
+                    borrowedBy={book.borrowedBy}
+                    borrowedAt={book.borrowedAt}
+                    dueDate={book.dueDate}
+                    loanMemo={book.loanMemo}
+                  />
+                </div>
+                <Separator />
+                <div>
                   <BookCategoryEditor bookId={book.id} initialCategory={book.category} />
                 </div>
                 <Separator />

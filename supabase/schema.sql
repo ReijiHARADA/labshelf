@@ -16,7 +16,11 @@ create table if not exists public.books (
   popularity_score integer not null default 50,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  memo text
+  memo text,
+  borrowed_by text,
+  borrowed_at timestamptz,
+  due_date date,
+  loan_memo text
 );
 
 create table if not exists public.categories (

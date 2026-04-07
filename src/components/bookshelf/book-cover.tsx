@@ -35,7 +35,7 @@ export function BookCover({
     return (
       <div
         className={cn(
-          'relative rounded-md overflow-hidden shadow-soft',
+          'relative overflow-hidden shadow-soft',
           sizeClasses[size],
           className
         )}
@@ -49,6 +49,11 @@ export function BookCover({
           quality={imageQuality}
           onError={() => setImageError(true)}
         />
+        {book.borrowedBy && (
+          <span className="absolute left-1.5 top-1.5 bg-rose-600/90 text-white text-[10px] px-1.5 py-0.5">
+            貸出中
+          </span>
+        )}
       </div>
     );
   }
@@ -56,7 +61,7 @@ export function BookCover({
   return (
     <div
       className={cn(
-        'relative rounded-md overflow-hidden shadow-soft flex flex-col items-center justify-center p-3',
+        'relative overflow-hidden shadow-soft flex flex-col items-center justify-center p-3',
         sizeClasses[size],
         className
       )}
@@ -84,6 +89,11 @@ export function BookCover({
       >
         {book.title}
       </p>
+      {book.borrowedBy && (
+        <span className="absolute left-1.5 top-1.5 bg-rose-600/90 text-white text-[10px] px-1.5 py-0.5">
+          貸出中
+        </span>
+      )}
     </div>
   );
 }

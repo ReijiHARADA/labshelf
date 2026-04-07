@@ -20,6 +20,10 @@ type DbBookRow = {
   created_at: string;
   updated_at: string;
   memo: string | null;
+  borrowed_by: string | null;
+  borrowed_at: string | null;
+  due_date: string | null;
+  loan_memo: string | null;
 };
 
 function isMissingColorColumnError(errorMessage: string): boolean {
@@ -49,6 +53,10 @@ function toDbRow(book: Book): DbBookRow {
     created_at: book.createdAt,
     updated_at: book.updatedAt,
     memo: book.memo ?? null,
+    borrowed_by: book.borrowedBy ?? null,
+    borrowed_at: book.borrowedAt ?? null,
+    due_date: book.dueDate ?? null,
+    loan_memo: book.loanMemo ?? null,
   };
 }
 
@@ -72,6 +80,10 @@ function fromDbRow(row: DbBookRow): Book {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     memo: row.memo ?? undefined,
+    borrowedBy: row.borrowed_by ?? undefined,
+    borrowedAt: row.borrowed_at ?? undefined,
+    dueDate: row.due_date ?? undefined,
+    loanMemo: row.loan_memo ?? undefined,
   };
 }
 
@@ -263,6 +275,32 @@ export async function updateBookCoverInDatabase(
     .eq('id', id);
 
   if (error) throw new Error(`表紙画像更新に失敗しました: ${error.message}`);
+}
+
+export async function updateBookLoanInDatabase(
+  id: string,
+  loan: {
+    borrowedBy?: string | null;
+    borrowedAt?: string | null;
+    dueDate?: string | null;
+    loanMemo?: string | null;
+  }
+): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from('books')
+    .update({
+      borrowed_by: loan.borrowedBy ?? null,
+      borrowed_at: loan.borrowedAt ?? null,
+      due_date: loan.dueDate ?? null,
+      loan_memo: loan.loanMemo ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) throw new Error(`貸出情報更新に失敗しました: ${error.message}`);
 }
 
 export async function bulkUpdateBookCategoryInDatabase(
