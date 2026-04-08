@@ -67,6 +67,13 @@ export function VirtualBookshelf({
   const rightNeighbors =
     focusedIndex >= 0 ? shelfBooks.slice(focusedIndex + 1, focusedIndex + 1 + perSideCount) : [];
   const focusedMemo = focusedBook?.memo?.trim();
+  const edgePeek = viewportWidth >= 1600 ? -120 : viewportWidth >= 1200 ? -96 : -72;
+  const coverTransition = {
+    type: 'spring' as const,
+    stiffness: 220,
+    damping: 26,
+    mass: 0.8,
+  };
 
   useEffect(() => {
     const onResize = () => setViewportWidth(window.innerWidth);
@@ -146,7 +153,7 @@ export function VirtualBookshelf({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.98 }}
               transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-              className="relative z-10 w-full max-w-5xl p-2 sm:p-4"
+              className="relative z-10 w-screen max-w-none p-2 sm:p-4"
             >
               <div className="absolute right-0 top-0 z-20">
                 <Button
@@ -173,14 +180,19 @@ export function VirtualBookshelf({
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: i === 0 ? 0.7 : 0.88, x: 0 }}
                         transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-                        className="transition hover:-translate-y-1 hover:opacity-100"
-                        style={{ marginLeft: i === 0 ? -56 : 0 }}
+                        className="transition hover:opacity-100"
+                        style={{ marginLeft: i === 0 ? edgePeek : 0 }}
                       >
-                        <BookCover
-                          book={book}
-                          size="md"
-                          className="h-44 w-[120px] rounded-md"
-                        />
+                        <motion.div
+                          layoutId={`focus-cover-${book.id}`}
+                          transition={coverTransition}
+                        >
+                          <BookCover
+                            book={book}
+                            size="md"
+                            className="h-44 w-[120px] rounded-md"
+                          />
+                        </motion.div>
                       </motion.button>
                     ))}
                   </div>
@@ -188,9 +200,10 @@ export function VirtualBookshelf({
                   <div className="flex flex-col items-center">
                   <motion.div
                     key={focusedBook.id}
-                    initial={{ opacity: 0, scale: 0.88, y: 10 }}
+                    layoutId={`focus-cover-${focusedBook.id}`}
+                    initial={{ opacity: 0.88, scale: 0.9, y: 12 }}
                     animate={{ opacity: 1, scale: 1, y: -2 }}
-                    transition={{ type: 'spring', stiffness: 240, damping: 26 }}
+                    transition={coverTransition}
                     className="drop-shadow-2xl"
                   >
                     <BookCover
@@ -228,14 +241,19 @@ export function VirtualBookshelf({
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: i === rightNeighbors.length - 1 ? 0.7 : 0.88, x: 0 }}
                         transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-                        className="transition hover:-translate-y-1 hover:opacity-100"
-                        style={{ marginRight: i === rightNeighbors.length - 1 ? -56 : 0 }}
+                        className="transition hover:opacity-100"
+                        style={{ marginRight: i === rightNeighbors.length - 1 ? edgePeek : 0 }}
                       >
-                        <BookCover
-                          book={book}
-                          size="md"
-                          className="h-44 w-[120px] rounded-md"
-                        />
+                        <motion.div
+                          layoutId={`focus-cover-${book.id}`}
+                          transition={coverTransition}
+                        >
+                          <BookCover
+                            book={book}
+                            size="md"
+                            className="h-44 w-[120px] rounded-md"
+                          />
+                        </motion.div>
                       </motion.button>
                     ))}
                   </div>
