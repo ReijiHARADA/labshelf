@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShelfRow } from './shelf-row';
 import { BookCover } from './book-cover';
@@ -23,6 +23,7 @@ export function VirtualBookshelf({
   title,
 }: VirtualBookshelfProps) {
   const [focusedBookId, setFocusedBookId] = useState<string | null>(null);
+  const [viewportWidth, setViewportWidth] = useState(1280);
 
   const shelves = useMemo(() => {
     const rows: Book[][] = [];
@@ -58,12 +59,21 @@ export function VirtualBookshelf({
     [shelfBooks, focusedBookId]
   );
   const focusedBook = focusedIndex >= 0 ? shelfBooks[focusedIndex] : null;
-  const leftNeighbor = focusedIndex > 0 ? shelfBooks[focusedIndex - 1] : null;
-  const rightNeighbor =
-    focusedIndex >= 0 && focusedIndex < shelfBooks.length - 1
-      ? shelfBooks[focusedIndex + 1]
-      : null;
+  const perSideCount = viewportWidth >= 1600 ? 4 : viewportWidth >= 1200 ? 3 : 2;
+  const leftNeighbors =
+    focusedIndex > 0
+      ? shelfBooks.slice(Math.max(0, focusedIndex - perSideCount), focusedIndex)
+      : [];
+  const rightNeighbors =
+    focusedIndex >= 0 ? shelfBooks.slice(focusedIndex + 1, focusedIndex + 1 + perSideCount) : [];
   const focusedMemo = focusedBook?.memo?.trim();
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   return (
     <div className="relative">
@@ -151,34 +161,36 @@ export function VirtualBookshelf({
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 items-center gap-4 md:grid-cols-[1fr_auto_1fr]">
-                <div className="order-2 flex items-center justify-center md:order-1 md:justify-end">
-                  {leftNeighbor ? (
-                    <motion.button
-                      key={leftNeighbor.id}
-                      type="button"
-                      onClick={() => setFocusedBookId(leftNeighbor.id)}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.08, duration: 0.26 }}
-                      className="opacity-85 transition hover:-translate-y-1 hover:opacity-100"
-                    >
-                      <BookCover
-                        book={leftNeighbor}
-                        size="md"
-                        className="h-44 w-[120px] rounded-md"
-                      />
-                    </motion.button>
-                  ) : (
-                    <div className="hidden md:block w-[120px]" />
-                  )}
-                </div>
+              <div className="relative w-full overflow-hidden">
+                <div className="flex items-center justify-center gap-4">
+                  <div className="hidden md:flex items-center justify-end gap-3">
+                    {leftNeighbors.map((book, i) => (
+                      <motion.button
+                        key={book.id}
+                        type="button"
+                        layout
+                        onClick={() => setFocusedBookId(book.id)}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: i === 0 ? 0.7 : 0.88, x: 0 }}
+                        transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+                        className="transition hover:-translate-y-1 hover:opacity-100"
+                        style={{ marginLeft: i === 0 ? -56 : 0 }}
+                      >
+                        <BookCover
+                          book={book}
+                          size="md"
+                          className="h-44 w-[120px] rounded-md"
+                        />
+                      </motion.button>
+                    ))}
+                  </div>
 
-                <div className="order-1 flex flex-col items-center md:order-2">
+                  <div className="flex flex-col items-center">
                   <motion.div
+                    key={focusedBook.id}
                     initial={{ opacity: 0, scale: 0.88, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: -2 }}
-                    transition={{ duration: 0.32, ease: 'easeOut' }}
+                    transition={{ type: 'spring', stiffness: 240, damping: 26 }}
                     className="drop-shadow-2xl"
                   >
                     <BookCover
@@ -188,9 +200,10 @@ export function VirtualBookshelf({
                     />
                   </motion.div>
                   <motion.div
+                    key={`${focusedBook.id}-meta`}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.14, duration: 0.25 }}
+                    transition={{ delay: 0.1, duration: 0.22 }}
                     className="mt-4 max-w-sm text-center"
                   >
                     <h3 className="text-lg font-semibold leading-tight sm:text-xl">
@@ -203,28 +216,29 @@ export function VirtualBookshelf({
                       </p>
                     )}
                   </motion.div>
-                </div>
+                  </div>
 
-                <div className="order-3 flex items-center justify-center md:justify-start">
-                  {rightNeighbor ? (
-                    <motion.button
-                      key={rightNeighbor.id}
-                      type="button"
-                      onClick={() => setFocusedBookId(rightNeighbor.id)}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.08, duration: 0.26 }}
-                      className="opacity-85 transition hover:-translate-y-1 hover:opacity-100"
-                    >
-                      <BookCover
-                        book={rightNeighbor}
-                        size="md"
-                        className="h-44 w-[120px] rounded-md"
-                      />
-                    </motion.button>
-                  ) : (
-                    <div className="hidden md:block w-[120px]" />
-                  )}
+                  <div className="hidden md:flex items-center justify-start gap-3">
+                    {rightNeighbors.map((book, i) => (
+                      <motion.button
+                        key={book.id}
+                        type="button"
+                        layout
+                        onClick={() => setFocusedBookId(book.id)}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: i === rightNeighbors.length - 1 ? 0.7 : 0.88, x: 0 }}
+                        transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+                        className="transition hover:-translate-y-1 hover:opacity-100"
+                        style={{ marginRight: i === rightNeighbors.length - 1 ? -56 : 0 }}
+                      >
+                        <BookCover
+                          book={book}
+                          size="md"
+                          className="h-44 w-[120px] rounded-md"
+                        />
+                      </motion.button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </motion.div>
