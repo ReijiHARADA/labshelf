@@ -127,7 +127,7 @@ export function VirtualBookshelf({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.28 }}
-            className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto px-4 pb-8 pt-6 sm:px-8 sm:pt-10"
+            className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto px-4 py-6 sm:px-8"
           >
             <div className="absolute inset-0 bg-white/35 backdrop-blur-[10px]" />
 
@@ -184,7 +184,7 @@ export function VirtualBookshelf({
                     <BookCover
                       book={focusedBook}
                       size="lg"
-                      className="h-[320px] w-[214px] rounded-lg sm:h-[360px] sm:w-[240px]"
+                      className="h-[380px] w-[252px] rounded-lg sm:h-[440px] sm:w-[292px]"
                     />
                   </motion.div>
                   <motion.div
