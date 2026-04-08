@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search,
   SlidersHorizontal,
   Grid3X3,
   List,
@@ -12,7 +11,6 @@ import {
   X,
   ChevronDown,
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -128,6 +126,10 @@ export default function BrowsePage() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    setSearchQuery(searchParams.get('q') || '');
+  }, [searchParams]);
+
   const filteredBooks = useMemo(() => {
     let books = allBooks;
 
@@ -164,15 +166,6 @@ export default function BrowsePage() {
 
     return sortBooks(books, sortBy);
   }, [allBooks, searchQuery, selectedCategory, selectedTags, sortBy, searchParams]);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const params = new URLSearchParams();
-    if (searchQuery) params.set('q', searchQuery);
-    if (selectedCategory) params.set('category', selectedCategory);
-    if (sortBy !== 'latest') params.set('sort', sortBy);
-    router.push(`/browse?${params.toString()}`);
-  };
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -248,22 +241,9 @@ export default function BrowsePage() {
           </p>
         </div>
 
-        {/* Search and filters */}
+        {/* Filters */}
         <div className="mb-6 space-y-4">
-          <form onSubmit={handleSearch} className="flex gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="タイトル、著者、ISBN、タグで検索..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-11"
-              />
-            </div>
-            <Button type="submit" className="h-11 px-6">
-              検索
-            </Button>
+          <div className="flex flex-wrap gap-3">
             <Button
               type="button"
               variant="outline"
@@ -279,7 +259,7 @@ export default function BrowsePage() {
                 )}
               />
             </Button>
-          </form>
+          </div>
 
           {/* Filter panel */}
           <AnimatePresence>
@@ -380,7 +360,15 @@ export default function BrowsePage() {
               {searchQuery && (
                 <Badge variant="secondary" className="gap-1">
                   検索: {searchQuery}
-                  <button onClick={() => setSearchQuery('')}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const p = new URLSearchParams(searchParams.toString());
+                      p.delete('q');
+                      const s = p.toString();
+                      router.push(s ? `/browse?${s}` : '/browse');
+                    }}
+                  >
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>

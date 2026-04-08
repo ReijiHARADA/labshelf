@@ -2,11 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Search, Settings, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { BookOpen, Settings, Menu, X } from 'lucide-react';
+import { Suspense, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AdminLinkWithSetupGuide } from '@/components/layout/admin-link-with-setup-guide';
+import {
+  HeaderSearchDesktop,
+  HeaderSearchMobile,
+} from '@/components/layout/header-search';
 
 const navigation = [
   { name: 'ホーム', href: '/' },
@@ -52,17 +56,16 @@ export function Header() {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden sm:flex h-9 w-9 rounded-lg"
-              asChild
+            <Suspense
+              fallback={
+                <div
+                  className="hidden h-9 w-9 shrink-0 rounded-full bg-zinc-950 sm:block"
+                  aria-hidden
+                />
+              }
             >
-              <Link href="/browse">
-                <Search className="h-4.5 w-4.5" />
-                <span className="sr-only">検索</span>
-              </Link>
-            </Button>
+              <HeaderSearchDesktop />
+            </Suspense>
             <Link
               href="/scan"
               className={cn(
@@ -94,6 +97,9 @@ export function Header() {
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-border/50">
+            <Suspense fallback={null}>
+              <HeaderSearchMobile onDone={() => setMobileMenuOpen(false)} />
+            </Suspense>
             <nav className="flex flex-col gap-1">
               {navigation.map((item) => (
                 <Link

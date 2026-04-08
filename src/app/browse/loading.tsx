@@ -11,13 +11,9 @@ export default function BrowseLoading() {
           <Skeleton className="h-5 w-48" />
         </div>
 
-        {/* Search */}
+        {/* Filter trigger */}
         <div className="mb-6">
-          <div className="flex gap-3">
-            <Skeleton className="h-11 flex-1" />
-            <Skeleton className="h-11 w-20" />
-            <Skeleton className="h-11 w-32" />
-          </div>
+          <Skeleton className="h-11 w-32" />
         </div>
 
         {/* Toolbar */}
