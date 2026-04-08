@@ -148,16 +148,20 @@ export function VirtualBookshelf({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.28 }}
             className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto"
-            onClick={() => setFocusedBookId(null)}
           >
-            <div className="absolute inset-0 bg-white/35 backdrop-blur-[10px]" />
+            <button
+              type="button"
+              aria-label="フォーカスビューを閉じる"
+              className="absolute inset-0 bg-white/35 backdrop-blur-[10px]"
+              onClick={() => setFocusedBookId(null)}
+            />
 
             <motion.div
               initial={{ opacity: 0, y: 24, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.98 }}
               transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-              className="relative z-10 h-full w-full pointer-events-none"
+              className="relative z-10 h-full w-full pointer-events-auto"
             >
               <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
                 <Button
@@ -172,10 +176,7 @@ export function VirtualBookshelf({
                 </Button>
               </div>
 
-              <div
-                className="relative flex h-full w-full items-center overflow-hidden"
-                onClickCapture={(e) => e.stopPropagation()}
-              >
+              <div className="relative flex h-full w-full items-center overflow-hidden">
                 <LayoutGroup id="focus-shelf-layout">
                   <div
                     className="absolute inset-y-0 left-0 hidden items-center overflow-hidden md:flex"
