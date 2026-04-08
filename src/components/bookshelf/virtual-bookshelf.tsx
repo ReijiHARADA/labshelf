@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ShelfRow } from './shelf-row';
 import { BookCover } from './book-cover';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { X, Pencil, Check } from 'lucide-react';
 import type { Book } from '@/types/book';
 import { getSpineWidth } from '@/lib/spine-colors';
 
@@ -27,6 +27,29 @@ export function VirtualBookshelf({
   const [focusedBookId, setFocusedBookId] = useState<string | null>(null);
   const [motionDirection, setMotionDirection] = useState<1 | -1>(1);
   const [viewportWidth, setViewportWidth] = useState(1280);
+  const [editMode, setEditMode] = useState(false);
+  const [orderedBooks, setOrderedBooks] = useState<Book[]>([]);
+
+  const persistShelf = async (next: Book[]) => {
+    await Promise.all(
+      next.map((book, idx) =>
+        fetch(`/api/books/${encodeURIComponent(book.id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            shelf: { order: idx, orientation: book.shelfOrientation ?? 'vertical' },
+          }),
+        }).catch(() => undefined)
+      )
+    );
+  };
+
+  useEffect(() => {
+    const seeded = [...books]
+      .map((book, idx) => ({ ...book, shelfOrder: book.shelfOrder ?? idx }))
+      .sort((a, b) => (a.shelfOrder ?? 0) - (b.shelfOrder ?? 0));
+    setOrderedBooks(seeded);
+  }, [books]);
 
   const shelves = useMemo(() => {
     const rows: Book[][] = [];
@@ -34,7 +57,7 @@ export function VirtualBookshelf({
     let currentWidth = 0;
     const maxWidth = maxBooksPerRow * 35;
 
-    for (const book of books) {
+    for (const book of orderedBooks) {
       const bookWidth = getSpineWidth(book);
       
       if (currentWidth + bookWidth > maxWidth && currentRow.length > 0) {
@@ -54,7 +77,7 @@ export function VirtualBookshelf({
     }
 
     return rows;
-  }, [books, maxBooksPerRow, maxRows]);
+  }, [orderedBooks, maxBooksPerRow, maxRows]);
 
   const shelfBooks = useMemo(() => shelves.flat(), [shelves]);
   const focusedIndex = useMemo(
@@ -100,9 +123,69 @@ export function VirtualBookshelf({
     setFocusedBookId(targetId);
   };
 
+  const reorderRow = (rowIndex: number, orderedIds: string[]) => {
+    if (!editMode || orderedIds.length === 0) return;
+    setOrderedBooks((prev) => {
+      const rows: Book[][] = [];
+      let currentRow: Book[] = [];
+      let currentWidth = 0;
+      const maxWidth = maxBooksPerRow * 35;
+      for (const book of prev) {
+        const w = getSpineWidth(book);
+        if (currentWidth + w > maxWidth && currentRow.length > 0) {
+          rows.push(currentRow);
+          currentRow = [];
+          currentWidth = 0;
+          if (rows.length >= maxRows) break;
+        }
+        currentRow.push(book);
+        currentWidth += w + 2;
+      }
+      if (currentRow.length > 0 && rows.length < maxRows) rows.push(currentRow);
+      if (!rows[rowIndex]) return prev;
+
+      const idToBook = new Map(prev.map((b) => [b.id, b] as const));
+      rows[rowIndex] = orderedIds.map((id) => idToBook.get(id)).filter((b): b is Book => Boolean(b));
+      const flattened = rows.flat();
+      const normalized = flattened.map((b, i) => ({ ...b, shelfOrder: i }));
+      void persistShelf(normalized);
+      return normalized;
+    });
+  };
+
+  const cycleOrientation = (bookId: string) => {
+    const order: Array<'vertical' | 'horizontal' | 'cover'> = [
+      'vertical',
+      'horizontal',
+      'cover',
+    ];
+    setOrderedBooks((prev) => {
+      const next = prev.map((b) => {
+        if (b.id !== bookId) return b;
+        const cur = b.shelfOrientation ?? 'vertical';
+        const idx = order.indexOf(cur);
+        return { ...b, shelfOrientation: order[(idx + 1) % order.length] };
+      });
+      void persistShelf(next);
+      return next;
+    });
+  };
+
   return (
     <div className="relative">
       <div className="relative">
+        <div className="mb-3 flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={() => setEditMode((v) => !v)}
+          >
+            {editMode ? <Check className="mr-1.5 h-4 w-4" /> : <Pencil className="mr-1.5 h-4 w-4" />}
+            {editMode ? '編集完了' : '本棚を編集'}
+          </Button>
+        </div>
         {title && (
           <motion.h3
             initial={{ opacity: 0, y: -10 }}
@@ -141,6 +224,9 @@ export function VirtualBookshelf({
                   books={shelfBooks}
                   onBookClick={(book) => moveFocus(book.id)}
                   rowIndex={rowIndex}
+                  editMode={editMode}
+                  onReorder={(ids) => reorderRow(rowIndex, ids)}
+                  onCycleOrientation={cycleOrientation}
                 />
               ))}
             </AnimatePresence>
@@ -239,12 +325,10 @@ export function VirtualBookshelf({
                         },
                         scale: {
                           duration: 0.3,
-                          delay: 0.1,
                           ease: [0.22, 0.86, 0.36, 1],
                         },
                         opacity: {
                           duration: 0.3,
-                          delay: 0.1,
                           ease: 'linear',
                         },
                       }}

@@ -32,6 +32,8 @@ export interface Book {
   dueDate?: string;
   loanMemo?: string;
   dimensions?: BookDimensions;
+  shelfOrder?: number;
+  shelfOrientation?: 'vertical' | 'horizontal' | 'cover';
 }
 
 export interface BookSpineStyle {

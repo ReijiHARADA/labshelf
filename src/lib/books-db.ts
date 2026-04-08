@@ -30,6 +30,8 @@ type DbBookRow = {
   page_count?: number | null;
   dimensions_source?: string | null;
   dimensions_manual?: boolean | null;
+  shelf_order?: number | null;
+  shelf_orientation?: string | null;
 };
 
 function isMissingColorColumnError(errorMessage: string): boolean {
@@ -69,6 +71,8 @@ function toDbRow(book: Book): DbBookRow {
     page_count: book.dimensions?.pageCount ?? null,
     dimensions_source: book.dimensions?.source ?? null,
     dimensions_manual: book.dimensions?.manual ?? null,
+    shelf_order: book.shelfOrder ?? null,
+    shelf_orientation: book.shelfOrientation ?? null,
   };
 }
 
@@ -112,6 +116,9 @@ function fromDbRow(row: DbBookRow): Book {
             manual: row.dimensions_manual ?? undefined,
           }
         : undefined,
+    shelfOrder: row.shelf_order ?? undefined,
+    shelfOrientation:
+      (row.shelf_orientation as 'vertical' | 'horizontal' | 'cover' | null) ?? undefined,
   };
 }
 
@@ -123,6 +130,8 @@ function stripDimensionsColumns(row: DbBookRow): Omit<
   | 'page_count'
   | 'dimensions_source'
   | 'dimensions_manual'
+  | 'shelf_order'
+  | 'shelf_orientation'
 > {
   const {
     physical_height_mm: _h,
@@ -131,6 +140,8 @@ function stripDimensionsColumns(row: DbBookRow): Omit<
     page_count: _p,
     dimensions_source: _s,
     dimensions_manual: _m,
+    shelf_order: _so,
+    shelf_orientation: _sr,
     ...rest
   } = row;
   return rest;
@@ -151,7 +162,9 @@ export async function upsertBooksToDatabase(books: Book[]): Promise<void> {
     error.message.includes('physical_thickness_mm') ||
     error.message.includes('page_count') ||
     error.message.includes('dimensions_source') ||
-    error.message.includes('dimensions_manual')
+    error.message.includes('dimensions_manual') ||
+    error.message.includes('shelf_order') ||
+    error.message.includes('shelf_orientation')
   ) {
     const compactRows = rows.map((row) => stripDimensionsColumns(row));
     const { error: retryError } = await supabase
@@ -162,6 +175,23 @@ export async function upsertBooksToDatabase(books: Book[]): Promise<void> {
   }
 
   throw new Error(`DB保存に失敗しました: ${error.message}`);
+}
+
+export async function updateBookShelfInDatabase(
+  id: string,
+  shelf: { order?: number | null; orientation?: 'vertical' | 'horizontal' | 'cover' | null }
+): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return;
+  const { error } = await supabase
+    .from('books')
+    .update({
+      shelf_order: shelf.order ?? null,
+      shelf_orientation: shelf.orientation ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+  if (error) throw new Error(`本棚設定更新に失敗しました: ${error.message}`);
 }
 
 export async function findExistingIsbns(isbns: string[]): Promise<Set<string>> {

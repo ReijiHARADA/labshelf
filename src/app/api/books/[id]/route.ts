@@ -12,6 +12,7 @@ import {
   addCategoryToDatabase,
   updateBookLoanInDatabase,
   updateBookDimensionsInDatabase,
+  updateBookShelfInDatabase,
 } from '@/lib/books-db';
 
 export const dynamic = 'force-dynamic';
@@ -85,8 +86,24 @@ export async function PATCH(
         pageCount: parseNumeric(dimensionsInput.pageCount),
       }
     : undefined;
+  const shelfInput = body?.shelf && typeof body.shelf === 'object' ? body.shelf : undefined;
+  const shelf =
+    shelfInput
+      ? {
+          order:
+            typeof shelfInput.order === 'number' && Number.isFinite(shelfInput.order)
+              ? Math.round(shelfInput.order)
+              : undefined,
+          orientation:
+            shelfInput.orientation === 'vertical' ||
+            shelfInput.orientation === 'horizontal' ||
+            shelfInput.orientation === 'cover'
+              ? shelfInput.orientation
+              : undefined,
+        }
+      : undefined;
 
-  if (!category && !loanAction && !dimensions) {
+  if (!category && !loanAction && !dimensions && !shelf) {
     return NextResponse.json(
       { error: '更新内容を指定してください' },
       { status: 400 }
@@ -160,6 +177,8 @@ export async function PATCH(
           manual: true,
         }
       : book.dimensions,
+    shelfOrder: shelf?.order ?? book.shelfOrder,
+    shelfOrientation: shelf?.orientation ?? book.shelfOrientation,
     updatedAt: new Date().toISOString(),
   };
 
@@ -185,6 +204,12 @@ export async function PATCH(
         pageCount: updated.dimensions?.pageCount ?? null,
         source: 'manual',
         manual: true,
+      });
+    }
+    if (shelf) {
+      await updateBookShelfInDatabase(id, {
+        order: updated.shelfOrder ?? null,
+        orientation: updated.shelfOrientation ?? null,
       });
     }
   } catch (error) {

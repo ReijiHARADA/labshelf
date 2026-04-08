@@ -15,9 +15,17 @@ interface BookSpineProps {
   book: Book;
   onClick?: () => void;
   index?: number;
+  editMode?: boolean;
+  onCycleOrientation?: () => void;
 }
 
-export function BookSpine({ book, onClick, index = 0 }: BookSpineProps) {
+export function BookSpine({
+  book,
+  onClick,
+  index = 0,
+  editMode = false,
+  onCycleOrientation,
+}: BookSpineProps) {
   const spineColor = getSpineColor(book.category, book.id);
   const spineWidth = getSpineWidth(book);
   const spineHeight = getSpineHeight(book);
@@ -27,6 +35,16 @@ export function BookSpine({ book, onClick, index = 0 }: BookSpineProps) {
   const displayTitle = book.title.length > 20 
     ? book.title.slice(0, 18) + '…' 
     : book.title;
+
+  const orientation = book.shelfOrientation ?? 'vertical';
+  const isCover = orientation === 'cover';
+  const isHorizontal = orientation === 'horizontal';
+  const visualWidth = isCover
+    ? Math.max(spineHeight * 0.66, 56)
+    : isHorizontal
+      ? spineHeight
+      : spineWidth;
+  const visualHeight = isHorizontal ? spineWidth : spineHeight;
 
   return (
     <motion.button
@@ -48,32 +66,71 @@ export function BookSpine({ book, onClick, index = 0 }: BookSpineProps) {
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
       )}
       style={{
-        width: `${spineWidth}px`,
-        height: `${spineHeight}px`,
+        width: `${visualWidth}px`,
+        height: `${visualHeight}px`,
       }}
       aria-label={`${book.title} - ${book.author}`}
     >
-      {/* Left page edge (white paper showing) */}
-      <div
-        className="absolute left-0 top-[2px] bottom-[2px] w-[3px]"
-        style={{
-          background: 'linear-gradient(90deg, #d4d4d4 0%, #f5f5f5 40%, #e8e8e8 100%)',
-          boxShadow: 'inset -1px 0 2px rgba(0,0,0,0.1)',
-        }}
-      />
-
-      {/* Right page edge (white paper showing) */}
-      <div
-        className="absolute right-0 top-[2px] bottom-[2px] w-[3px]"
-        style={{
-          background: 'linear-gradient(270deg, #d4d4d4 0%, #f5f5f5 40%, #e8e8e8 100%)',
-          boxShadow: 'inset 1px 0 2px rgba(0,0,0,0.1)',
-        }}
-      />
-
+      {isCover ? (
+        <div className="absolute inset-0 overflow-hidden border border-black/10 bg-white">
+          {book.coverImageUrl ? (
+            <img src={book.coverImageUrl} alt={book.title} className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full grid place-items-center text-[10px] text-muted-foreground px-1">
+              {displayTitle}
+            </div>
+          )}
+        </div>
+      ) : isHorizontal ? (
+        <div
+          className="absolute inset-0 rounded-[2px] overflow-hidden"
+          style={{
+            backgroundColor: spineColor,
+            boxShadow: `
+              inset 0 2px 4px rgba(0,0,0,0.18),
+              inset 0 -2px 4px rgba(0,0,0,0.14),
+              inset 2px 0 3px rgba(255,255,255,0.08),
+              inset -2px 0 3px rgba(255,255,255,0.08)
+            `,
+          }}
+        >
+          {hasTexture && (
+            <div
+              className="absolute inset-0 opacity-[0.06] pointer-events-none"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+              }}
+            />
+          )}
+          <div
+            className="absolute top-0 left-0 right-0 h-[2px]"
+            style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.25), transparent)' }}
+          />
+          <div
+            className="absolute bottom-0 left-0 right-0 h-[2px]"
+            style={{ background: 'linear-gradient(0deg, rgba(0,0,0,0.2), transparent)' }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center px-3">
+            <p
+              className="font-medium whitespace-nowrap"
+              style={{
+                fontSize: '10px',
+                color: 'rgba(255,255,255,0.94)',
+                textShadow: '0 1px 2px rgba(0,0,0,0.35)',
+                letterSpacing: '0.015em',
+                transform: 'rotate(90deg)',
+                transformOrigin: 'center',
+              }}
+            >
+              {displayTitle}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Main spine body */}
       <div
-        className="absolute inset-0 mx-[3px] flex flex-col items-center justify-center"
+        className="absolute inset-0 flex flex-col items-center justify-center"
         style={{
           backgroundColor: spineColor,
           boxShadow: `
@@ -170,6 +227,20 @@ export function BookSpine({ book, onClick, index = 0 }: BookSpineProps) {
           className="absolute -top-1 right-0 w-2.5 h-2.5 rounded-full bg-amber-400 border border-white/80 shadow-sm z-10"
           title="おすすめ"
         />
+      )}
+      </>
+      )}
+      {editMode && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCycleOrientation?.();
+          }}
+          className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-1.5 py-0.5 text-[9px] text-white"
+        >
+          {orientation === 'vertical' ? '縦' : orientation === 'horizontal' ? '横' : '表紙'}
+        </button>
       )}
     </motion.button>
   );
