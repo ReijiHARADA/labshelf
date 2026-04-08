@@ -143,7 +143,10 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
   const rowDimensions = parseRowDimensions(row);
   let apiDimensions: BookDimensions | undefined;
   
-  if (!title || !author || !coverImageUrl || !description || !publisher) {
+  const needsCoreMetadata = !title || !author || !coverImageUrl || !description || !publisher;
+  const needsDimensions = !rowDimensions;
+
+  if (needsCoreMetadata || needsDimensions) {
     console.log(`行${index + 2}: ISBN ${normalizedISBN} の情報をAPIから取得中...`);
     const apiData = await fetchBookInfo(normalizedISBN);
     
@@ -500,6 +503,52 @@ export async function syncFromISBNList(isbns: string[]): Promise<{
     books,
     errors,
   };
+}
+
+export async function backfillMissingDimensions(limit = 300): Promise<{
+  updated: number;
+  checked: number;
+  errors: string[];
+}> {
+  await ensureBooksLoaded();
+  const current = getBooks();
+  const targets = current
+    .filter((book) => !book.dimensions?.heightMm && !book.dimensions?.thicknessMm)
+    .slice(0, Math.max(1, limit));
+
+  const errors: string[] = [];
+  if (targets.length === 0) {
+    return { updated: 0, checked: 0, errors };
+  }
+
+  const map = new Map(current.map((book) => [book.id, book] as const));
+  let updated = 0;
+
+  for (const book of targets) {
+    try {
+      const apiData = await fetchBookInfo(book.isbn);
+      if (!apiData?.dimensions) continue;
+      const next = {
+        ...book,
+        dimensions: book.dimensions?.manual ? book.dimensions : apiData.dimensions,
+        updatedAt: new Date().toISOString(),
+      };
+      map.set(book.id, next);
+      updated += 1;
+    } catch (error) {
+      errors.push(
+        `${book.isbn}: ${error instanceof Error ? error.message : 'サイズ補完に失敗しました'}`
+      );
+    }
+  }
+
+  if (updated > 0) {
+    const merged = Array.from(map.values());
+    await upsertBooksToDatabase(merged);
+    updateBooks(merged);
+  }
+
+  return { updated, checked: targets.length, errors };
 }
 
 export function getLastSyncTime(): string | null {
