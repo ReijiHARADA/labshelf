@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { ShelfRow } from './shelf-row';
 import { BookCover } from './book-cover';
@@ -25,6 +25,7 @@ export function VirtualBookshelf({
 }: VirtualBookshelfProps) {
   const router = useRouter();
   const [focusedBookId, setFocusedBookId] = useState<string | null>(null);
+  const [motionDirection, setMotionDirection] = useState<1 | -1>(1);
   const [viewportWidth, setViewportWidth] = useState(1280);
 
   const shelves = useMemo(() => {
@@ -71,12 +72,7 @@ export function VirtualBookshelf({
   const rightNeighbors =
     focusedIndex >= 0 ? shelfBooks.slice(focusedIndex + 1, focusedIndex + 1 + perSideCount) : [];
   const focusedMemo = focusedBook?.memo?.trim();
-  const coverTransition = {
-    type: 'spring' as const,
-    stiffness: 210,
-    damping: 26,
-    mass: 0.8,
-  };
+  const coverTransition = { duration: 0.28, ease: [0.22, 0.86, 0.36, 1] as const };
 
   useEffect(() => {
     const onResize = () => setViewportWidth(window.innerWidth);
@@ -84,6 +80,25 @@ export function VirtualBookshelf({
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  useEffect(() => {
+    if (!focusedBookId) return;
+    if (focusedIndex !== -1) return;
+    if (shelfBooks.length === 0) {
+      setFocusedBookId(null);
+      return;
+    }
+    setFocusedBookId(shelfBooks[0].id);
+  }, [focusedBookId, focusedIndex, shelfBooks]);
+
+  const moveFocus = (targetId: string) => {
+    const current = focusedIndex;
+    const next = shelfBooks.findIndex((b) => b.id === targetId);
+    if (next !== -1 && current !== -1) {
+      setMotionDirection(next > current ? 1 : -1);
+    }
+    setFocusedBookId(targetId);
+  };
 
   return (
     <div className="relative">
@@ -124,7 +139,7 @@ export function VirtualBookshelf({
                 <ShelfRow
                   key={`shelf-${rowIndex}`}
                   books={shelfBooks}
-                  onBookClick={(book) => setFocusedBookId(book.id)}
+                  onBookClick={(book) => moveFocus(book.id)}
                   rowIndex={rowIndex}
                 />
               ))}
@@ -177,127 +192,139 @@ export function VirtualBookshelf({
               </div>
 
               <div className="relative flex h-full w-full items-center overflow-hidden">
-                <LayoutGroup id="focus-shelf-layout">
-                  <div
-                    className="absolute inset-y-0 left-0 hidden items-center overflow-hidden md:flex"
-                    style={{ width: `${sideTrackWidth}px` }}
-                  >
-                    <div className="flex w-full items-center justify-end gap-3 pr-1">
-                      {leftNeighbors.map((book, i) => (
-                        <motion.button
-                          key={book.id}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFocusedBookId(book.id);
-                          }}
-                          animate={{ opacity: i === 0 ? 0.7 : 0.88 }}
-                          transition={{ duration: 0.18 }}
-                          className="transition hover:opacity-100"
-                        >
-                          <motion.div layoutId={`focus-cover-${book.id}`} transition={coverTransition}>
-                            <BookCover
-                              book={book}
-                              size="md"
-                              className="h-44 w-[120px] rounded-md"
-                            />
-                          </motion.div>
-                        </motion.button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <motion.div
-                    className="relative z-10 mx-auto flex items-center justify-center pointer-events-auto"
-                    initial={{ opacity: 0.97 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.18 }}
-                    style={{ width: `${centerStageWidth}px` }}
-                  >
-                    <div className="relative flex flex-col items-center">
-                      <motion.div
-                        layoutId={`focus-cover-${focusedBook.id}`}
-                        transition={coverTransition}
-                        className="drop-shadow-2xl"
+                <div
+                  className="absolute inset-y-0 left-0 hidden items-center overflow-hidden md:flex"
+                  style={{ width: `${sideTrackWidth}px` }}
+                >
+                  <div className="flex w-full items-center justify-end gap-3 pr-1">
+                    {leftNeighbors.map((book, i) => (
+                      <motion.button
+                        key={book.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveFocus(book.id);
+                        }}
+                        animate={{ opacity: i === 0 ? 0.7 : 0.88, scale: 0.94 }}
+                        transition={{ duration: 0.16 }}
+                        className="transition hover:opacity-100"
                       >
-                        <button
+                        <BookCover
+                          book={book}
+                          size="md"
+                          className="h-44 w-[120px] rounded-md"
+                        />
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+
+                <div
+                  className="relative z-10 mx-auto flex items-center justify-center pointer-events-auto"
+                  style={{ width: `${centerStageWidth}px` }}
+                >
+                  <div className="relative flex flex-col items-center">
+                    <motion.div
+                      key={focusedBook.id}
+                      initial={{ x: motionDirection * 140, scale: 0.48, opacity: 0.9 }}
+                      animate={{
+                        x: [motionDirection * 140, 0, 0],
+                        scale: [0.48, 0.48, 1],
+                        opacity: [0.9, 0.9, 1],
+                      }}
+                      transition={{
+                        x: {
+                          duration: 0.3,
+                          ease: [0.16, 0.84, 0.34, 1],
+                        },
+                        scale: {
+                          duration: 0.3,
+                          delay: 0.1,
+                          ease: [0.22, 0.86, 0.36, 1],
+                        },
+                        opacity: {
+                          duration: 0.3,
+                          delay: 0.1,
+                          ease: 'linear',
+                        },
+                      }}
+                      className="drop-shadow-2xl"
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/books/${focusedBook.id}`);
+                        }}
+                        className="block"
+                        aria-label={`${focusedBook.title} の詳細を見る`}
+                      >
+                        <BookCover
+                          book={focusedBook}
+                          size="lg"
+                          className="h-[380px] w-[252px] rounded-lg sm:h-[440px] sm:w-[292px]"
+                        />
+                      </button>
+                    </motion.div>
+                    <motion.div
+                      key={`${focusedBook.id}-meta`}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.08, duration: 0.2 }}
+                      className="absolute top-full mt-4 max-w-sm text-center"
+                    >
+                      <h3 className="text-lg font-semibold leading-tight sm:text-xl">
+                        {focusedBook.title}
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">{focusedBook.author}</p>
+                      {focusedMemo && (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {focusedMemo.length > 72 ? `${focusedMemo.slice(0, 72)}...` : focusedMemo}
+                        </p>
+                      )}
+                      <div className="mt-3">
+                        <Button
                           type="button"
+                          size="sm"
+                          className="rounded-full bg-zinc-950 text-white hover:bg-zinc-800"
                           onClick={(e) => {
                             e.stopPropagation();
                             router.push(`/books/${focusedBook.id}`);
                           }}
-                          className="block"
-                          aria-label={`${focusedBook.title} の詳細を見る`}
                         >
-                          <BookCover
-                            book={focusedBook}
-                            size="lg"
-                            className="h-[380px] w-[252px] rounded-lg sm:h-[440px] sm:w-[292px]"
-                          />
-                        </button>
-                      </motion.div>
-                      <motion.div
-                        key={`${focusedBook.id}-meta`}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.08, duration: 0.2 }}
-                        className="absolute top-full mt-4 max-w-sm text-center"
-                      >
-                        <h3 className="text-lg font-semibold leading-tight sm:text-xl">
-                          {focusedBook.title}
-                        </h3>
-                        <p className="mt-1 text-sm text-muted-foreground">{focusedBook.author}</p>
-                        {focusedMemo && (
-                          <p className="mt-2 text-sm text-muted-foreground">
-                            {focusedMemo.length > 72 ? `${focusedMemo.slice(0, 72)}...` : focusedMemo}
-                          </p>
-                        )}
-                        <div className="mt-3">
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="rounded-full bg-zinc-950 text-white hover:bg-zinc-800"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/books/${focusedBook.id}`);
-                            }}
-                          >
-                            この本の詳細を見る
-                          </Button>
-                        </div>
-                      </motion.div>
-                    </div>
-                  </motion.div>
-
-                  <div
-                    className="absolute inset-y-0 right-0 hidden items-center overflow-hidden md:flex"
-                    style={{ width: `${sideTrackWidth}px` }}
-                  >
-                    <div className="flex w-full items-center justify-start gap-3 pl-1">
-                      {rightNeighbors.map((book, i) => (
-                        <motion.button
-                          key={book.id}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFocusedBookId(book.id);
-                          }}
-                          animate={{ opacity: i === rightNeighbors.length - 1 ? 0.7 : 0.88 }}
-                          transition={{ duration: 0.18 }}
-                          className="transition hover:opacity-100"
-                        >
-                          <motion.div layoutId={`focus-cover-${book.id}`} transition={coverTransition}>
-                            <BookCover
-                              book={book}
-                              size="md"
-                              className="h-44 w-[120px] rounded-md"
-                            />
-                          </motion.div>
-                        </motion.button>
-                      ))}
-                    </div>
+                          この本の詳細を見る
+                        </Button>
+                      </div>
+                    </motion.div>
                   </div>
-                </LayoutGroup>
+                </div>
+
+                <div
+                  className="absolute inset-y-0 right-0 hidden items-center overflow-hidden md:flex"
+                  style={{ width: `${sideTrackWidth}px` }}
+                >
+                  <div className="flex w-full items-center justify-start gap-3 pl-1">
+                    {rightNeighbors.map((book, i) => (
+                      <motion.button
+                        key={book.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveFocus(book.id);
+                        }}
+                        animate={{ opacity: i === rightNeighbors.length - 1 ? 0.7 : 0.88, scale: 0.94 }}
+                        transition={{ duration: 0.16 }}
+                        className="transition hover:opacity-100"
+                      >
+                        <BookCover
+                          book={book}
+                          size="md"
+                          className="h-44 w-[120px] rounded-md"
+                        />
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </motion.div>
           </motion.div>
