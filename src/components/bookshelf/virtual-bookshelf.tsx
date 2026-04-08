@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { ShelfRow } from './shelf-row';
 import { BookCover } from './book-cover';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ export function VirtualBookshelf({
   maxRows = 3,
   title,
 }: VirtualBookshelfProps) {
+  const router = useRouter();
   const [focusedBookId, setFocusedBookId] = useState<string | null>(null);
   const [viewportWidth, setViewportWidth] = useState(1280);
 
@@ -145,6 +147,7 @@ export function VirtualBookshelf({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.28 }}
             className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto px-4 py-6 sm:px-8"
+            onClick={() => setFocusedBookId(null)}
           >
             <div className="absolute inset-0 bg-white/35 backdrop-blur-[10px]" />
 
@@ -154,6 +157,7 @@ export function VirtualBookshelf({
               exit={{ opacity: 0, y: 12, scale: 0.98 }}
               transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
               className="relative z-10 w-screen max-w-none p-2 sm:p-4"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="absolute right-0 top-0 z-20">
                 <Button
@@ -206,11 +210,18 @@ export function VirtualBookshelf({
                     transition={coverTransition}
                     className="drop-shadow-2xl"
                   >
-                    <BookCover
-                      book={focusedBook}
-                      size="lg"
-                      className="h-[380px] w-[252px] rounded-lg sm:h-[440px] sm:w-[292px]"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/books/${focusedBook.id}`)}
+                      className="block"
+                      aria-label={`${focusedBook.title} の詳細を見る`}
+                    >
+                      <BookCover
+                        book={focusedBook}
+                        size="lg"
+                        className="h-[380px] w-[252px] rounded-lg sm:h-[440px] sm:w-[292px]"
+                      />
+                    </button>
                   </motion.div>
                   <motion.div
                     key={`${focusedBook.id}-meta`}
@@ -228,6 +239,16 @@ export function VirtualBookshelf({
                         {focusedMemo.length > 72 ? `${focusedMemo.slice(0, 72)}...` : focusedMemo}
                       </p>
                     )}
+                    <div className="mt-3">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="rounded-full bg-zinc-950 text-white hover:bg-zinc-800"
+                        onClick={() => router.push(`/books/${focusedBook.id}`)}
+                      >
+                        この本の詳細を見る
+                      </Button>
+                    </div>
                   </motion.div>
                   </div>
 
