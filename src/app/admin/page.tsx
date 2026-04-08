@@ -360,10 +360,16 @@ export default function AdminPage() {
               <KeyRound className="h-5 w-5" />
               共有トークン
             </CardTitle>
-            <CardDescription>
-              バーコード取り込み（/api/ingest）用のトークンです。この端末のブラウザに保存されます（Vercel の{' '}
-              <code className="rounded bg-muted px-1 py-0.5 text-xs">LABSHELF_INGEST_TOKEN</code>{' '}
-              と同じ値）。
+            <CardDescription className="space-y-2">
+              <p>
+                研究室のメンバーだけが「本を取り込む（バーコード）」機能を使えるようにするための合言葉です。知っている人だけが追加できるようにするためのもので、
+                <span className="font-medium text-foreground"> 学外の人やSNSなどに書かないでください。</span>
+              </p>
+              <p>
+                ここに入力して保存すると、このブラウザにだけ覚えさせられます。値は、サイトを動かしているサーバー（例: Vercel）の環境変数{' '}
+                <code className="rounded bg-muted px-1 py-0.5 text-xs">LABSHELF_INGEST_TOKEN</code>{' '}
+                に設定した文字列と<strong className="font-medium text-foreground"> 完全に同じ</strong>にしてください。
+              </p>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
