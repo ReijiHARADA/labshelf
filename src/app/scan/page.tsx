@@ -124,7 +124,7 @@ export default function ScanPage() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  async function stopCamera() {
+  function releaseMediaTracks() {
     scanningRef.current = false;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
@@ -135,6 +135,10 @@ export default function ScanPage() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+  }
+
+  async function stopCamera() {
+    releaseMediaTracks();
     setStatus({ type: 'idle' });
   }
 
@@ -160,7 +164,8 @@ export default function ScanPage() {
     setResult(null);
     setStatus({ type: 'starting' });
     try {
-      await stopCamera();
+      // idle に戻さない（video がアンマウントして ref が null になるのを防ぐ）
+      releaseMediaTracks();
       const constraints: MediaStreamConstraints = {
         video: deviceId
           ? { deviceId: { exact: deviceId } }
@@ -472,19 +477,31 @@ export default function ScanPage() {
                 </div>
               </div>
 
-              {showVideoPreview ? (
-                <div
+              <div
+                className={cn(
+                  'relative min-h-[200px] overflow-hidden rounded-xl border-2 transition-colors',
+                  showVideoPreview
+                    ? cn('bg-black/95', frameClass)
+                    : 'border-dashed border-muted-foreground/30 bg-transparent'
+                )}
+              >
+                {/* 常にマウントして ref を維持（開始直後に stopCamera で idle に戻すと外れてエラーになる） */}
+                <video
+                  ref={videoRef}
                   className={cn(
-                    'relative overflow-hidden rounded-xl border-2 bg-black/95 transition-colors',
-                    frameClass
+                    'h-[320px] w-full object-contain sm:h-[420px]',
+                    !showVideoPreview && 'invisible'
                   )}
-                >
-                  <video
-                    ref={videoRef}
-                    className="w-full h-[320px] sm:h-[420px] object-contain"
-                    muted
-                    playsInline
-                  />
+                  muted
+                  playsInline
+                />
+                {!showVideoPreview && (
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 py-8 text-center text-sm text-muted-foreground">
+                    <Camera className="h-8 w-8 opacity-40" />
+                    <p>「開始」を押すと、ここにカメラ映像が表示されます。</p>
+                  </div>
+                )}
+                {showVideoPreview && (
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                     <div
                       className="rounded-lg border-2 border-emerald-300/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]"
@@ -494,15 +511,8 @@ export default function ScanPage() {
                       }}
                     />
                   </div>
-                </div>
-              ) : (
-                <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/30 bg-transparent px-4 py-8 text-center text-sm text-muted-foreground">
-                  <Camera className="h-8 w-8 opacity-40" />
-                  <p>
-                    「開始」を押すと、ここにカメラ映像が表示されます。
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
 
               {status.type === 'error' && (
                 <div className="flex items-center gap-2 text-sm text-red-700">
