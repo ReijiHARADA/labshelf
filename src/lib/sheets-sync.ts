@@ -34,6 +34,17 @@ interface SheetRow {
   createdAt?: string;
   updatedAt?: string;
   memo?: string;
+  [key: string]: string | undefined;
+}
+
+function pickRowValue(row: SheetRow, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value;
+    }
+  }
+  return undefined;
 }
 
 function parseBoolean(value: string | undefined): boolean {
@@ -71,7 +82,7 @@ function normalizeISBN(isbn: string): string {
 }
 
 async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | null> {
-  const isbn = row.isbn?.trim();
+  const isbn = pickRowValue(row, ['isbn', 'ISBN'])?.trim();
   
   if (!isbn) {
     console.log(`行${index + 2}: ISBNが空です`);
@@ -80,13 +91,22 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
   
   const normalizedISBN = normalizeISBN(isbn);
   
-  let title = row.title?.trim();
-  let author = row.author?.trim();
-  let publisher = row.publisher?.trim();
-  let publishedYear = parseNumber(row.publishedYear, 0);
-  let description = row.description?.trim();
-  let coverImageUrl = row.coverImageUrl?.trim();
-  let subtitle = row.subtitle?.trim();
+  let title = pickRowValue(row, ['title', 'タイトル'])?.trim();
+  let author = pickRowValue(row, ['author', '著者'])?.trim();
+  let publisher = pickRowValue(row, ['publisher', '出版社'])?.trim();
+  let publishedYear = parseNumber(
+    pickRowValue(row, ['publishedYear', 'publishedyear', 'published_year', '出版年']),
+    0
+  );
+  let description = pickRowValue(row, ['description', '概要'])?.trim();
+  let coverImageUrl = pickRowValue(row, [
+    'coverImageUrl',
+    'coverimageurl',
+    'cover_image_url',
+    'cover',
+    '表紙',
+  ])?.trim();
+  let subtitle = pickRowValue(row, ['subtitle', 'サブタイトル'])?.trim();
   
   if (!title || !author || !coverImageUrl || !description || !publisher) {
     console.log(`行${index + 2}: ISBN ${normalizedISBN} の情報をAPIから取得中...`);
@@ -122,17 +142,20 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
     author: author || '不明',
     publisher: publisher || '',
     publishedYear: publishedYear || new Date().getFullYear(),
-    category: row.category?.trim() || '未分類',
-    tags: parseTags(row.tags),
+    category: pickRowValue(row, ['category', 'カテゴリ'])?.trim() || '未分類',
+    tags: parseTags(pickRowValue(row, ['tags', 'tag', 'タグ'])),
     description: description || undefined,
-    toc: row.toc?.trim() || undefined,
+    toc: pickRowValue(row, ['toc', '目次'])?.trim() || undefined,
     coverImageUrl: coverImageUrl || undefined,
-    recommended: parseBoolean(row.recommended),
-    latestFlag: parseBoolean(row.latestFlag),
-    popularityScore: parseNumber(row.popularityScore, 50),
-    createdAt: parseDate(row.createdAt),
-    updatedAt: parseDate(row.updatedAt),
-    memo: row.memo?.trim() || undefined,
+    recommended: parseBoolean(pickRowValue(row, ['recommended', 'おすすめ'])),
+    latestFlag: parseBoolean(pickRowValue(row, ['latestFlag', 'latestflag', '新着'])),
+    popularityScore: parseNumber(
+      pickRowValue(row, ['popularityScore', 'popularityscore', 'popularity_score']),
+      50
+    ),
+    createdAt: parseDate(pickRowValue(row, ['createdAt', 'createdat', 'created_at'])),
+    updatedAt: parseDate(pickRowValue(row, ['updatedAt', 'updatedat', 'updated_at'])),
+    memo: pickRowValue(row, ['memo', 'メモ'])?.trim() || undefined,
   };
 }
 

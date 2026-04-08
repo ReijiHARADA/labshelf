@@ -25,8 +25,9 @@ export function BookCover({
 }: BookCoverProps) {
   const spineColor = getSpineColor(book.category, book.id);
   const [imageError, setImageError] = useState(false);
+  const coverSrc = book.coverImageUrl?.replace(/^http:\/\//, 'https://');
 
-  if (book.coverImageUrl && !imageError) {
+  if (coverSrc && !imageError) {
     return (
       <div
         className={cn(
@@ -36,7 +37,7 @@ export function BookCover({
         )}
       >
         <img
-          src={book.coverImageUrl}
+          src={coverSrc}
           alt={book.title}
           loading="lazy"
           decoding="async"
