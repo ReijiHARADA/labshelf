@@ -69,12 +69,11 @@ export function VirtualBookshelf({
   const rightNeighbors =
     focusedIndex >= 0 ? shelfBooks.slice(focusedIndex + 1, focusedIndex + 1 + perSideCount) : [];
   const focusedMemo = focusedBook?.memo?.trim();
-  const edgePeek = viewportWidth >= 1600 ? -120 : viewportWidth >= 1200 ? -96 : -72;
+  const edgePeek = viewportWidth >= 1600 ? -72 : viewportWidth >= 1200 ? -60 : -44;
   const coverTransition = {
-    type: 'spring' as const,
-    stiffness: 220,
-    damping: 26,
-    mass: 0.8,
+    type: 'tween' as const,
+    duration: 0.28,
+    ease: [0.22, 0.86, 0.36, 1] as const,
   };
 
   useEffect(() => {
@@ -146,7 +145,7 @@ export function VirtualBookshelf({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.28 }}
-            className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto px-4 py-6 sm:px-8"
+            className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto py-6"
             onClick={() => setFocusedBookId(null)}
           >
             <div className="absolute inset-0 bg-white/35 backdrop-blur-[10px]" />
@@ -156,15 +155,14 @@ export function VirtualBookshelf({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.98 }}
               transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-              className="relative z-10 w-screen max-w-none p-2 sm:p-4"
-              onClick={(e) => e.stopPropagation()}
+              className="relative z-10 h-full w-full pointer-events-none"
             >
               <div className="absolute right-0 top-0 z-20">
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full bg-white/70 shadow-sm backdrop-blur"
+                  className="h-9 w-9 rounded-full bg-zinc-950 text-white shadow-sm hover:bg-zinc-800 pointer-events-auto"
                   onClick={() => setFocusedBookId(null)}
                   aria-label="フォーカスビューを閉じる"
                 >
@@ -172,18 +170,23 @@ export function VirtualBookshelf({
                 </Button>
               </div>
 
-              <div className="relative w-full overflow-hidden">
-                <div className="flex items-center justify-center gap-4">
+              <div className="relative w-full overflow-hidden pt-4">
+                <motion.div
+                  key={focusedBook.id}
+                  className="flex items-center justify-center gap-4 pointer-events-auto"
+                  initial={{ opacity: 0.96 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <div className="hidden md:flex items-center justify-end gap-3">
                     {leftNeighbors.map((book, i) => (
                       <motion.button
                         key={book.id}
                         type="button"
-                        layout
                         onClick={() => setFocusedBookId(book.id)}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: i === 0 ? 0.7 : 0.88, x: 0 }}
-                        transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+                        initial={{ opacity: 0.82 }}
+                        animate={{ opacity: i === 0 ? 0.7 : 0.88 }}
+                        transition={{ duration: 0.2 }}
                         className="transition hover:opacity-100"
                         style={{ marginLeft: i === 0 ? edgePeek : 0 }}
                       >
@@ -257,11 +260,10 @@ export function VirtualBookshelf({
                       <motion.button
                         key={book.id}
                         type="button"
-                        layout
                         onClick={() => setFocusedBookId(book.id)}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: i === rightNeighbors.length - 1 ? 0.7 : 0.88, x: 0 }}
-                        transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+                        initial={{ opacity: 0.82 }}
+                        animate={{ opacity: i === rightNeighbors.length - 1 ? 0.7 : 0.88 }}
+                        transition={{ duration: 0.2 }}
                         className="transition hover:opacity-100"
                         style={{ marginRight: i === rightNeighbors.length - 1 ? edgePeek : 0 }}
                       >
@@ -278,7 +280,7 @@ export function VirtualBookshelf({
                       </motion.button>
                     ))}
                   </div>
-                </div>
+                </motion.div>
               </div>
             </motion.div>
           </motion.div>
