@@ -5,6 +5,7 @@ import {
   Copy,
   Calendar,
   Building2,
+  Ruler,
   Tag,
   FileText,
   Star,
@@ -37,6 +38,14 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   }
 
   const relatedBooks = getRelatedBooks(book, 6);
+  const formatBookSize = () => {
+    const d = book.dimensions;
+    if (!d) return '未設定';
+    const h = d.heightMm ? `${Math.round(d.heightMm)}mm` : '-';
+    const w = d.widthMm ? `${Math.round(d.widthMm)}mm` : '-';
+    const t = d.thicknessMm ? `${Math.round(d.thicknessMm)}mm` : '-';
+    return `${h} × ${w} × ${t}`;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -120,6 +129,13 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                     <div>
                       <p className="text-sm text-muted-foreground">出版年</p>
                       <p className="font-medium">{book.publishedYear}年</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 col-span-2 sm:col-span-1">
+                    <Ruler className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">本のサイズ</p>
+                      <p className="font-medium">{formatBookSize()}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 col-span-2">
