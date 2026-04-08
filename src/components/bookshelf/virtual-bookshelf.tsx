@@ -127,7 +127,7 @@ export function VirtualBookshelf({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.28 }}
-            className="absolute inset-0 z-20 flex items-center justify-center px-4 py-6 sm:px-8"
+            className="absolute inset-0 z-20 flex items-start justify-center overflow-y-auto px-4 pb-8 pt-6 sm:px-8 sm:pt-10"
           >
             <div className="absolute inset-0 bg-white/35 backdrop-blur-[10px]" />
 
@@ -136,14 +136,14 @@ export function VirtualBookshelf({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.98 }}
               transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-              className="relative z-10 w-full max-w-5xl rounded-2xl border border-border/60 bg-white/80 p-4 shadow-lg sm:p-6"
+              className="relative z-10 w-full max-w-5xl p-2 sm:p-4"
             >
-              <div className="absolute right-3 top-3">
+              <div className="absolute right-0 top-0 z-20">
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full"
+                  className="h-8 w-8 rounded-full bg-white/70 shadow-sm backdrop-blur"
                   onClick={() => setFocusedBookId(null)}
                   aria-label="フォーカスビューを閉じる"
                 >
