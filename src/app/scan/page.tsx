@@ -400,7 +400,7 @@ export default function ScanPage() {
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold">スキャンして追加</h1>
+            <h1 className="text-3xl font-bold">本を取り込む</h1>
             <p className="mt-2 text-muted-foreground">
               本の登録は次の2通りです。上から順に、バーコード読み取りとスプレッドシートからの取り込みを選べます。
             </p>
@@ -414,8 +414,8 @@ export default function ScanPage() {
         <div className="flex flex-col gap-12">
           <section className="space-y-4">
             <div>
-              <h2 className="flex items-center gap-2 text-base font-semibold leading-snug">
-                <Camera className="h-5 w-5 shrink-0" />
+              <h2 className="flex items-center gap-3 text-xl font-bold leading-snug sm:text-2xl">
+                <Camera className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />
                 バーコードで追加
               </h2>
               <div className="mt-2 space-y-2 text-sm text-muted-foreground">
@@ -533,8 +533,8 @@ export default function ScanPage() {
 
           <section className="space-y-4">
             <div>
-              <h2 className="flex items-center gap-2 text-base font-semibold leading-snug">
-                <Table2 className="h-5 w-5 shrink-0" />
+              <h2 className="flex items-center gap-3 text-xl font-bold leading-snug sm:text-2xl">
+                <Table2 className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />
                 スプレッドシートに直接追加
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
