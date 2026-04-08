@@ -127,7 +127,7 @@ export function VirtualBookshelf({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.28 }}
-            className="absolute inset-0 z-20 flex items-start justify-center overflow-y-auto px-4 pb-8 pt-6 sm:px-8 sm:pt-10"
+            className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto px-4 pb-8 pt-6 sm:px-8 sm:pt-10"
           >
             <div className="absolute inset-0 bg-white/35 backdrop-blur-[10px]" />
 
