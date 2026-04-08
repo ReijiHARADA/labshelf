@@ -455,9 +455,8 @@ export default function ScanPage() {
                   <Button
                     className={cn(
                       'h-11 min-w-28 shadow-none',
-                      isCameraOn
-                        ? 'shadow-none'
-                        : 'bg-zinc-950 text-white hover:bg-zinc-800 hover:text-white'
+                      !isCameraOn &&
+                        'bg-zinc-950 text-white hover:bg-zinc-800 hover:text-white'
                     )}
                     onClick={isCameraOn ? stopCamera : startCamera}
                     disabled={status.type === 'starting'}
@@ -557,7 +556,11 @@ export default function ScanPage() {
                 </li>
               </ol>
               {savedSheetId ? (
-                <Button variant="outline" className="w-full sm:w-auto" asChild>
+                <Button
+                  variant="outline"
+                  className="h-11 w-full border-0 bg-zinc-950 text-white shadow-none hover:bg-zinc-800 hover:text-white sm:w-auto"
+                  asChild
+                >
                   <a
                     href={`https://docs.google.com/spreadsheets/d/${savedSheetId}/edit`}
                     target="_blank"
