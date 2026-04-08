@@ -12,7 +12,6 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { normalizeToIsbn13 } from '@/lib/isbn';
 import {
@@ -403,7 +402,7 @@ export default function ScanPage() {
           <div>
             <h1 className="text-3xl font-bold">スキャンして追加</h1>
             <p className="mt-2 text-muted-foreground">
-              本の登録は次の2通りです。画面幅が広いときは横並びになるため、スクロールせずに両方のやり方が一覧できます。
+              本の登録は次の2通りです。上から順に、バーコード読み取りとスプレッドシートからの取り込みを選べます。
             </p>
           </div>
           <Button variant="outline" onClick={refreshDevices} className="shrink-0 self-start">
@@ -412,14 +411,14 @@ export default function ScanPage() {
           </Button>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Camera className="h-5 w-5" />
+        <div className="flex flex-col gap-12">
+          <section className="space-y-4">
+            <div>
+              <h2 className="flex items-center gap-2 text-base font-semibold leading-snug">
+                <Camera className="h-5 w-5 shrink-0" />
                 バーコードで追加
-              </CardTitle>
-              <CardDescription className="space-y-2">
+              </h2>
+              <div className="mt-2 space-y-2 text-sm text-muted-foreground">
                 <p>
                   <span className="font-medium text-foreground">使い方: </span>
                   「開始」を押してカメラを起動し、本の背表紙などにあるISBNバーコードを、画面中央の枠の中に入れてください。読み取れると自動でデータベースとスプレッドシートに追加されます。
@@ -429,9 +428,9 @@ export default function ScanPage() {
                     ? 'このブラウザでは BarcodeDetector を使って読み取ります。'
                     : 'このブラウザでは代替の読み取り方式を使います。'}
                 </p>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              </div>
+            </div>
+            <div className="space-y-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                 <div className="flex-1">
                   <label className="text-sm font-medium">使用するカメラ</label>
@@ -454,7 +453,12 @@ export default function ScanPage() {
                 </div>
                 <div className="shrink-0">
                   <Button
-                    className="h-11 min-w-28"
+                    className={cn(
+                      'h-11 min-w-28 shadow-none',
+                      isCameraOn
+                        ? 'shadow-none'
+                        : 'bg-zinc-950 text-white hover:bg-zinc-800 hover:text-white'
+                    )}
                     onClick={isCameraOn ? stopCamera : startCamera}
                     disabled={status.type === 'starting'}
                     variant={isCameraOn ? 'destructive' : 'default'}
@@ -493,7 +497,7 @@ export default function ScanPage() {
                   </div>
                 </div>
               ) : (
-                <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+                <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/30 bg-transparent px-4 py-8 text-center text-sm text-muted-foreground">
                   <Camera className="h-8 w-8 opacity-40" />
                   <p>
                     「開始」を押すと、ここにカメラ映像が表示されます。
@@ -514,7 +518,7 @@ export default function ScanPage() {
                 </div>
               )}
               {status.type === 'found' && (
-                <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">検出したISBN</p>
                     <p className="font-mono text-lg truncate">{foundIsbn}</p>
@@ -525,20 +529,20 @@ export default function ScanPage() {
                   <BookPlus className="h-5 w-5 text-muted-foreground" />
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Table2 className="h-5 w-5" />
+          <section className="space-y-4">
+            <div>
+              <h2 className="flex items-center gap-2 text-base font-semibold leading-snug">
+                <Table2 className="h-5 w-5 shrink-0" />
                 スプレッドシートに直接追加
-              </CardTitle>
-              <CardDescription>
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
                 スプレッドシートに行を追加し、管理画面の「今すぐ同期」でデータベースに取り込みます（カメラは不要です）。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-muted-foreground">
+              </p>
+            </div>
+            <div className="space-y-4 text-sm text-muted-foreground">
               <ol className="list-decimal space-y-2 pl-5">
                 <li>
                   スプレッドシートを開き、新しい行に{' '}
@@ -564,7 +568,7 @@ export default function ScanPage() {
                   </a>
                 </Button>
               ) : (
-                <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-950">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
                   スプレッドシートIDが未設定です。{' '}
                   <Link href="/admin" className="font-medium underline underline-offset-2">
                     管理画面
@@ -572,8 +576,8 @@ export default function ScanPage() {
                   で保存してください。
                 </p>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
         </div>
 
         {result && (
