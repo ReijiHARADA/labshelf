@@ -57,8 +57,6 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               <BookCover
                 book={book}
                 size="lg"
-                imageSizes="(max-width: 640px) 70vw, (max-width: 1024px) 40vw, 260px"
-                imageQuality={95}
                 className="w-full max-w-[260px] mx-auto lg:mx-0 h-auto aspect-[2/3]"
               />
 

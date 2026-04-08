@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Book } from '@/types/book';
@@ -11,8 +10,6 @@ interface BookCoverProps {
   book: Book;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
-  imageSizes?: string;
-  imageQuality?: number;
 }
 
 const sizeClasses = {
@@ -25,8 +22,6 @@ export function BookCover({
   book,
   size = 'md',
   className,
-  imageSizes,
-  imageQuality = 90,
 }: BookCoverProps) {
   const spineColor = getSpineColor(book.category, book.id);
   const [imageError, setImageError] = useState(false);
@@ -40,13 +35,12 @@ export function BookCover({
           className
         )}
       >
-        <Image
+        <img
           src={book.coverImageUrl}
           alt={book.title}
-          fill
-          className="object-cover"
-          sizes={imageSizes || (size === 'lg' ? '220px' : size === 'md' ? '120px' : '80px')}
-          quality={imageQuality}
+          loading="lazy"
+          decoding="async"
+          className="absolute inset-0 h-full w-full object-cover"
           onError={() => setImageError(true)}
         />
         {book.borrowedBy && (
