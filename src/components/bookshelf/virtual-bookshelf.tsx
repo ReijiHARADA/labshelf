@@ -172,7 +172,10 @@ export function VirtualBookshelf({
                 </Button>
               </div>
 
-              <div className="relative flex h-full w-full items-center overflow-hidden">
+              <div
+                className="relative flex h-full w-full items-center overflow-hidden"
+                onClickCapture={(e) => e.stopPropagation()}
+              >
                 <LayoutGroup id="focus-shelf-layout">
                   <div
                     className="absolute inset-y-0 left-0 hidden items-center overflow-hidden md:flex"

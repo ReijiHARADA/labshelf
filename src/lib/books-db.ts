@@ -370,6 +370,36 @@ export async function updateBookLoanInDatabase(
   if (error) throw new Error(`貸出情報更新に失敗しました: ${error.message}`);
 }
 
+export async function updateBookDimensionsInDatabase(
+  id: string,
+  dimensions: {
+    heightMm?: number | null;
+    widthMm?: number | null;
+    thicknessMm?: number | null;
+    pageCount?: number | null;
+    source?: 'manual' | 'api' | 'estimated' | null;
+    manual?: boolean | null;
+  }
+): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from('books')
+    .update({
+      physical_height_mm: dimensions.heightMm ?? null,
+      physical_width_mm: dimensions.widthMm ?? null,
+      physical_thickness_mm: dimensions.thicknessMm ?? null,
+      page_count: dimensions.pageCount ?? null,
+      dimensions_source: dimensions.source ?? null,
+      dimensions_manual: dimensions.manual ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) throw new Error(`本サイズ更新に失敗しました: ${error.message}`);
+}
+
 export async function bulkUpdateBookCategoryInDatabase(
   fromCategory: string,
   toCategory: string

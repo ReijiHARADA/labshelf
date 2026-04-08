@@ -18,6 +18,7 @@ import { BookCover } from '@/components/bookshelf';
 import { BookCategoryEditor } from '@/components/books/book-category-editor';
 import { BookCoverUploader } from '@/components/books/book-cover-uploader';
 import { BookLoanEditor } from '@/components/books/book-loan-editor';
+import { BookSizeEditor } from '@/components/books/book-size-editor';
 import { getBookById, getRelatedBooks } from '@/lib/books-store';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 
@@ -241,6 +242,8 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   </p>
                   <BookCategoryEditor bookId={book.id} initialCategory={book.category} />
                 </div>
+                <Separator />
+                <BookSizeEditor bookId={book.id} initialDimensions={book.dimensions} />
                 <Separator />
                 <div className="max-w-sm">
                   <BookCoverUploader bookId={book.id} />

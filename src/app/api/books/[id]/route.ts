@@ -11,6 +11,7 @@ import {
   updateBookCategoryInDatabase,
   addCategoryToDatabase,
   updateBookLoanInDatabase,
+  updateBookDimensionsInDatabase,
 } from '@/lib/books-db';
 
 export const dynamic = 'force-dynamic';
@@ -66,8 +67,26 @@ export async function PATCH(
   const dueDate = typeof body?.dueDate === 'string' ? body.dueDate.trim() : '';
   const loanMemo =
     typeof body?.loanMemo === 'string' ? body.loanMemo.trim() : '';
+  const dimensionsInput =
+    body?.dimensions && typeof body.dimensions === 'object' ? body.dimensions : undefined;
+  const parseNumeric = (v: unknown): number | undefined => {
+    if (typeof v === 'number' && Number.isFinite(v) && v > 0) return v;
+    if (typeof v === 'string') {
+      const n = Number.parseFloat(v);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+    return undefined;
+  };
+  const dimensions = dimensionsInput
+    ? {
+        heightMm: parseNumeric(dimensionsInput.heightMm),
+        widthMm: parseNumeric(dimensionsInput.widthMm),
+        thicknessMm: parseNumeric(dimensionsInput.thicknessMm),
+        pageCount: parseNumeric(dimensionsInput.pageCount),
+      }
+    : undefined;
 
-  if (!category && !loanAction) {
+  if (!category && !loanAction && !dimensions) {
     return NextResponse.json(
       { error: '更新内容を指定してください' },
       { status: 400 }
@@ -128,6 +147,19 @@ export async function PATCH(
         : loanAction === 'return'
           ? undefined
           : book.loanMemo,
+    dimensions: dimensions
+      ? {
+          heightMm: dimensions.heightMm,
+          widthMm: dimensions.widthMm,
+          thicknessMm: dimensions.thicknessMm,
+          pageCount:
+            typeof dimensions.pageCount === 'number'
+              ? Math.round(dimensions.pageCount)
+              : undefined,
+          source: 'manual' as const,
+          manual: true,
+        }
+      : book.dimensions,
     updatedAt: new Date().toISOString(),
   };
 
@@ -143,6 +175,16 @@ export async function PATCH(
         borrowedAt: updated.borrowedAt ?? null,
         dueDate: updated.dueDate ?? null,
         loanMemo: updated.loanMemo ?? null,
+      });
+    }
+    if (dimensions) {
+      await updateBookDimensionsInDatabase(id, {
+        heightMm: updated.dimensions?.heightMm ?? null,
+        widthMm: updated.dimensions?.widthMm ?? null,
+        thicknessMm: updated.dimensions?.thicknessMm ?? null,
+        pageCount: updated.dimensions?.pageCount ?? null,
+        source: 'manual',
+        manual: true,
       });
     }
   } catch (error) {
