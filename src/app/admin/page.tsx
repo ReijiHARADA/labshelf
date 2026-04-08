@@ -16,6 +16,7 @@ import {
   ExternalLink,
   FolderPlus,
   Trash2,
+  KeyRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,8 +25,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { SyncLog, Book } from '@/types/book';
-
-const SHEET_ID_KEY = 'labshelf_sheet_id';
+import {
+  LABSHELF_INGEST_TOKEN_KEY,
+  LABSHELF_SHEET_ID_KEY,
+} from '@/lib/labshelf-client-storage';
 
 export default function AdminPage() {
   const [isSyncing, setIsSyncing] = useState(false);
@@ -34,6 +37,8 @@ export default function AdminPage() {
   const [sheetId, setSheetId] = useState('');
   const [sheetIdInput, setSheetIdInput] = useState('');
   const [sheetIdSaved, setSheetIdSaved] = useState(false);
+  const [ingestTokenInput, setIngestTokenInput] = useState('');
+  const [ingestTokenSaved, setIngestTokenSaved] = useState(false);
   const [syncResult, setSyncResult] = useState<{
     success: boolean;
     message: string;
@@ -81,11 +86,12 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    const savedSheetId = localStorage.getItem(SHEET_ID_KEY);
+    const savedSheetId = localStorage.getItem(LABSHELF_SHEET_ID_KEY);
     if (savedSheetId) {
       setSheetId(savedSheetId);
       setSheetIdInput(savedSheetId);
     }
+    setIngestTokenInput(localStorage.getItem(LABSHELF_INGEST_TOKEN_KEY) || '');
     loadBooks();
     loadCategories();
   }, [loadBooks, loadCategories]);
@@ -104,9 +110,15 @@ export default function AdminPage() {
   const handleSaveSheetId = () => {
     const extractedId = extractSheetId(sheetIdInput);
     setSheetId(extractedId);
-    localStorage.setItem(SHEET_ID_KEY, extractedId);
+    localStorage.setItem(LABSHELF_SHEET_ID_KEY, extractedId);
     setSheetIdSaved(true);
     setTimeout(() => setSheetIdSaved(false), 2000);
+  };
+
+  const handleSaveIngestToken = () => {
+    localStorage.setItem(LABSHELF_INGEST_TOKEN_KEY, ingestTokenInput.trim());
+    setIngestTokenSaved(true);
+    setTimeout(() => setIngestTokenSaved(false), 2000);
   };
 
   const handleSync = async () => {
@@ -337,6 +349,45 @@ export default function AdminPage() {
             {!sheetId && (
               <p className="mt-3 text-sm text-amber-600">
                 スプレッドシートIDを設定すると同期が有効になります
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5" />
+              共有トークン
+            </CardTitle>
+            <CardDescription>
+              バーコード取り込み（/api/ingest）用のトークンです。この端末のブラウザに保存されます（Vercel の{' '}
+              <code className="rounded bg-muted px-1 py-0.5 text-xs">LABSHELF_INGEST_TOKEN</code>{' '}
+              と同じ値）。
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Input
+                type="password"
+                autoComplete="off"
+                placeholder="共有トークンを入力"
+                value={ingestTokenInput}
+                onChange={(e) => setIngestTokenInput(e.target.value)}
+                className="h-11 sm:flex-1"
+              />
+              <Button type="button" onClick={handleSaveIngestToken} className="h-11 sm:w-auto">
+                {ingestTokenSaved ? (
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {ingestTokenSaved ? '保存しました' : '保存'}
+              </Button>
+            </div>
+            {!ingestTokenInput.trim() && (
+              <p className="text-sm text-amber-600">
+                未設定のままではスキャンからの追加ができません
               </p>
             )}
           </CardContent>

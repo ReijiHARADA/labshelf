@@ -6,6 +6,7 @@ import { BookOpen, Search, Settings, Menu, X, ScanLine } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { AdminLinkWithSetupGuide } from '@/components/layout/admin-link-with-setup-guide';
 
 const navigation = [
   { name: 'ホーム', href: '/' },
@@ -68,22 +69,12 @@ export function Header() {
               className="hidden sm:flex h-9 w-9 rounded-lg"
               asChild
             >
-              <Link href="/admin">
-                <Settings className="h-4.5 w-4.5" />
-                <span className="sr-only">管理</span>
-              </Link>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden sm:flex h-9 w-9 rounded-lg"
-              asChild
-            >
               <Link href="/scan">
                 <ScanLine className="h-4.5 w-4.5" />
                 <span className="sr-only">スキャン</span>
               </Link>
             </Button>
+            <AdminLinkWithSetupGuide />
 
             {/* Mobile menu button */}
             <Button
@@ -123,7 +114,13 @@ export function Header() {
               ))}
               <div className="flex gap-2 mt-2 px-4">
                 <Button variant="outline" size="sm" className="flex-1" asChild>
-                  <Link href="/admin">
+                  <Link href="/scan" onClick={() => setMobileMenuOpen(false)}>
+                    <ScanLine className="h-4 w-4 mr-2" />
+                    スキャン
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" className="flex-1" asChild>
+                  <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
                     <Settings className="h-4 w-4 mr-2" />
                     管理
                   </Link>

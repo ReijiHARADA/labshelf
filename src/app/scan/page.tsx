@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { Camera, CheckCircle2, AlertCircle, RefreshCw, BookPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { normalizeToIsbn13 } from '@/lib/isbn';
+import { LABSHELF_INGEST_TOKEN_KEY } from '@/lib/labshelf-client-storage';
 
 type ScanStatus =
   | { type: 'idle' }
@@ -15,7 +16,6 @@ type ScanStatus =
   | { type: 'error'; message: string }
   | { type: 'found'; isbn: string };
 
-const TOKEN_KEY = 'labshelf_ingest_token';
 type ResultTone = 'success' | 'warning' | 'error';
 
 const GUIDE_WIDTH_RATIO = 0.72;
@@ -90,13 +90,19 @@ export default function ScanPage() {
   const supportsDetector = useMemo(() => hasBarcodeDetector(), []);
 
   useEffect(() => {
-    setToken(localStorage.getItem(TOKEN_KEY) || '');
+    const readToken = () =>
+      setToken(
+        typeof window !== 'undefined'
+          ? localStorage.getItem(LABSHELF_INGEST_TOKEN_KEY) || ''
+          : ''
+      );
+    readToken();
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === LABSHELF_INGEST_TOKEN_KEY) readToken();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
-
-  useEffect(() => {
-    if (!token) return;
-    localStorage.setItem(TOKEN_KEY, token);
-  }, [token]);
 
   async function stopCamera() {
     scanningRef.current = false;
@@ -512,28 +518,18 @@ export default function ScanPage() {
           </div>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>共有トークン</CardTitle>
-            <CardDescription>
-              研究室内で共有するトークンです（この端末のローカルに保存されます）。
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col sm:flex-row gap-3 sm:items-center">
-            <Input
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="例: labshelf-xxxx"
-              className="h-11"
-            />
-            {token && (
-              <div className="text-sm text-emerald-700 flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4" />
-                保存済み
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {!token.trim() && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-medium">共有トークンが未設定です</p>
+            <p className="mt-1 text-amber-900/90">
+              右上の歯車から{' '}
+              <Link href="/admin" className="font-medium underline underline-offset-2">
+                管理画面
+              </Link>
+              を開き、スプレッドシートIDと共有トークンを保存してください。
+            </p>
+          </div>
+        )}
 
       </div>
     </div>
