@@ -77,7 +77,7 @@ export function HeaderSearchDesktop() {
       className={cn(
         'hidden h-9 shrink-0 items-center overflow-hidden rounded-full bg-zinc-950 text-white transition-[max-width] duration-300 ease-out sm:flex',
         expanded
-          ? 'max-w-[min(320px,calc(100vw-18rem))] border border-zinc-800'
+          ? 'max-w-full border border-zinc-800'
           : 'max-w-9 border border-transparent'
       )}
     >

@@ -56,16 +56,18 @@ export function Header() {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            <Suspense
-              fallback={
-                <div
-                  className="hidden h-9 w-9 shrink-0 rounded-full bg-zinc-950 sm:block"
-                  aria-hidden
-                />
-              }
-            >
-              <HeaderSearchDesktop />
-            </Suspense>
+            <div className="hidden w-[230px] shrink-0 justify-end sm:flex lg:w-[320px]">
+              <Suspense
+                fallback={
+                  <div
+                    className="h-9 w-9 shrink-0 rounded-full bg-zinc-950"
+                    aria-hidden
+                  />
+                }
+              >
+                <HeaderSearchDesktop />
+              </Suspense>
+            </div>
             <Link
               href="/scan"
               className={cn(
