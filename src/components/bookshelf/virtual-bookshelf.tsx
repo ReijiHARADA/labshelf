@@ -62,7 +62,7 @@ export function VirtualBookshelf({
   );
   const focusedBook = focusedIndex >= 0 ? shelfBooks[focusedIndex] : null;
   const centerStageWidth = viewportWidth >= 1280 ? 380 : 330;
-  const sideTrackWidth = Math.max(0, Math.min(520, viewportWidth / 2 - centerStageWidth / 2 - 24));
+  const sideTrackWidth = Math.max(0, Math.min(520, viewportWidth / 2 - centerStageWidth / 2 - 16));
   const perSideCount = 6;
   const leftNeighbors =
     focusedIndex > 0
@@ -173,7 +173,6 @@ export function VirtualBookshelf({
 
               <div className="relative flex h-full w-full items-center overflow-hidden">
                 <motion.div
-                  key={focusedBook.id}
                   className="flex items-center justify-center gap-4 pointer-events-auto"
                   initial={{ opacity: 0.96 }}
                   animate={{ opacity: 1 }}
@@ -212,7 +211,6 @@ export function VirtualBookshelf({
 
                   <div className="relative flex flex-col items-center">
                   <motion.div
-                    key={focusedBook.id}
                     layoutId={`focus-cover-${focusedBook.id}`}
                     initial={{ opacity: 0.88, scale: 0.9, y: 12 }}
                     animate={{ opacity: 1, scale: 1, y: -2 }}
@@ -269,7 +267,7 @@ export function VirtualBookshelf({
 
                   <div
                     className="hidden md:flex items-center justify-start gap-3 overflow-hidden"
-                    style={{ width: `${sideTrackWidth}px` }}
+                    style={{ width: `${sideTrackWidth}px`, marginRight: '-8px' }}
                   >
                     {rightNeighbors.map((book, i) => (
                       <motion.button
