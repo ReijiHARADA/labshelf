@@ -24,6 +24,12 @@ type DbBookRow = {
   borrowed_at: string | null;
   due_date: string | null;
   loan_memo: string | null;
+  physical_height_mm?: number | null;
+  physical_width_mm?: number | null;
+  physical_thickness_mm?: number | null;
+  page_count?: number | null;
+  dimensions_source?: string | null;
+  dimensions_manual?: boolean | null;
 };
 
 function isMissingColorColumnError(errorMessage: string): boolean {
@@ -57,6 +63,12 @@ function toDbRow(book: Book): DbBookRow {
     borrowed_at: book.borrowedAt ?? null,
     due_date: book.dueDate ?? null,
     loan_memo: book.loanMemo ?? null,
+    physical_height_mm: book.dimensions?.heightMm ?? null,
+    physical_width_mm: book.dimensions?.widthMm ?? null,
+    physical_thickness_mm: book.dimensions?.thicknessMm ?? null,
+    page_count: book.dimensions?.pageCount ?? null,
+    dimensions_source: book.dimensions?.source ?? null,
+    dimensions_manual: book.dimensions?.manual ?? null,
   };
 }
 
@@ -84,7 +96,44 @@ function fromDbRow(row: DbBookRow): Book {
     borrowedAt: row.borrowed_at ?? undefined,
     dueDate: row.due_date ?? undefined,
     loanMemo: row.loan_memo ?? undefined,
+    dimensions:
+      row.physical_height_mm ||
+      row.physical_width_mm ||
+      row.physical_thickness_mm ||
+      row.page_count
+        ? {
+            heightMm: row.physical_height_mm ?? undefined,
+            widthMm: row.physical_width_mm ?? undefined,
+            thicknessMm: row.physical_thickness_mm ?? undefined,
+            pageCount: row.page_count ?? undefined,
+            source:
+              (row.dimensions_source as 'manual' | 'api' | 'estimated' | null) ??
+              undefined,
+            manual: row.dimensions_manual ?? undefined,
+          }
+        : undefined,
   };
+}
+
+function stripDimensionsColumns(row: DbBookRow): Omit<
+  DbBookRow,
+  | 'physical_height_mm'
+  | 'physical_width_mm'
+  | 'physical_thickness_mm'
+  | 'page_count'
+  | 'dimensions_source'
+  | 'dimensions_manual'
+> {
+  const {
+    physical_height_mm: _h,
+    physical_width_mm: _w,
+    physical_thickness_mm: _t,
+    page_count: _p,
+    dimensions_source: _s,
+    dimensions_manual: _m,
+    ...rest
+  } = row;
+  return rest;
 }
 
 export async function upsertBooksToDatabase(books: Book[]): Promise<void> {
@@ -94,7 +143,25 @@ export async function upsertBooksToDatabase(books: Book[]): Promise<void> {
 
   const rows = books.map(toDbRow);
   const { error } = await supabase.from('books').upsert(rows, { onConflict: 'id' });
-  if (error) throw new Error(`DB保存に失敗しました: ${error.message}`);
+  if (!error) return;
+
+  if (
+    error.message.includes('physical_height_mm') ||
+    error.message.includes('physical_width_mm') ||
+    error.message.includes('physical_thickness_mm') ||
+    error.message.includes('page_count') ||
+    error.message.includes('dimensions_source') ||
+    error.message.includes('dimensions_manual')
+  ) {
+    const compactRows = rows.map((row) => stripDimensionsColumns(row));
+    const { error: retryError } = await supabase
+      .from('books')
+      .upsert(compactRows, { onConflict: 'id' });
+    if (!retryError) return;
+    throw new Error(`DB保存に失敗しました: ${retryError.message}`);
+  }
+
+  throw new Error(`DB保存に失敗しました: ${error.message}`);
 }
 
 export async function findExistingIsbns(isbns: string[]): Promise<Set<string>> {

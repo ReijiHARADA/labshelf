@@ -1,4 +1,4 @@
-import type { BookCategory } from '@/types/book';
+import type { Book, BookCategory, BookDimensions } from '@/types/book';
 
 export const categoryColors: Record<BookCategory | string, string> = {
   プログラミング: 'var(--spine-blue)',
@@ -95,30 +95,45 @@ export function getSpineColor(category: string, _bookId?: string): string {
   return getCategoryColor(category);
 }
 
-export function getSpineWidth(title: string): number {
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function estimateThicknessFromPageCount(pageCount?: number): number {
+  if (!pageCount || pageCount <= 0) return 22;
+  // 概算: 紙厚 + 表紙分を加味
+  return clamp(10 + pageCount * 0.055, 10, 60);
+}
+
+export function getNormalizedBookDimensions(
+  dimensions?: BookDimensions
+): { heightMm: number; widthMm: number; thicknessMm: number } {
+  const estimatedThickness = estimateThicknessFromPageCount(dimensions?.pageCount);
+  return {
+    heightMm: clamp(dimensions?.heightMm ?? 210, 170, 320),
+    widthMm: clamp(dimensions?.widthMm ?? 148, 105, 230),
+    thicknessMm: clamp(dimensions?.thicknessMm ?? estimatedThickness, 10, 60),
+  };
+}
+
+export function getSpineWidth(book: Book): number {
   const baseWidth = 28;
   const maxWidth = 48;
   const minWidth = 20;
 
-  const lengthFactor = Math.min(title.length / 20, 1);
-  const width = baseWidth + lengthFactor * (maxWidth - baseWidth) * 0.5;
+  const { thicknessMm } = getNormalizedBookDimensions(book.dimensions);
+  const normalized = (thicknessMm - 10) / (60 - 10);
+  const width = baseWidth + normalized * (maxWidth - baseWidth);
 
-  return Math.max(minWidth, Math.min(maxWidth, width));
+  return clamp(width, minWidth, maxWidth);
 }
 
-export function getSpineHeight(category: string, bookId: string): number {
+export function getSpineHeight(book: Book): number {
   const baseHeight = 180;
-  const variation = 30;
-
-  let hash = 0;
-  for (let i = 0; i < bookId.length; i++) {
-    const char = bookId.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-
-  const heightOffset = (Math.abs(hash) % variation) - variation / 2;
-  return baseHeight + heightOffset;
+  const variation = 40;
+  const { heightMm } = getNormalizedBookDimensions(book.dimensions);
+  const normalized = (heightMm - 170) / (320 - 170);
+  return clamp(baseHeight + normalized * variation, 165, 220);
 }
 
 export function shouldHaveTexture(bookId: string): boolean {

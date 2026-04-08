@@ -1,3 +1,13 @@
+export interface BookDimensions {
+  /** 物理サイズ(mm)。manual が true ならローカル補正値。 */
+  heightMm?: number;
+  widthMm?: number;
+  thicknessMm?: number;
+  pageCount?: number;
+  source?: 'manual' | 'api' | 'estimated';
+  manual?: boolean;
+}
+
 export interface Book {
   id: string;
   isbn: string;
@@ -21,6 +31,7 @@ export interface Book {
   borrowedAt?: string;
   dueDate?: string;
   loanMemo?: string;
+  dimensions?: BookDimensions;
 }
 
 export interface BookSpineStyle {

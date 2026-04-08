@@ -34,7 +34,7 @@ export function VirtualBookshelf({
     const maxWidth = maxBooksPerRow * 35;
 
     for (const book of books) {
-      const bookWidth = getSpineWidth(book.title);
+      const bookWidth = getSpineWidth(book);
       
       if (currentWidth + bookWidth > maxWidth && currentRow.length > 0) {
         rows.push(currentRow);

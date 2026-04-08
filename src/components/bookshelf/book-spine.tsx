@@ -19,8 +19,8 @@ interface BookSpineProps {
 
 export function BookSpine({ book, onClick, index = 0 }: BookSpineProps) {
   const spineColor = getSpineColor(book.category, book.id);
-  const spineWidth = getSpineWidth(book.title);
-  const spineHeight = getSpineHeight(book.category, book.id);
+  const spineWidth = getSpineWidth(book);
+  const spineHeight = getSpineHeight(book);
   const hasTexture = shouldHaveTexture(book.id);
   const labelPosition = getLabelPosition(book.id);
 

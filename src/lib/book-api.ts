@@ -41,6 +41,15 @@ interface OpenBDResponse {
   };
   onix?: {
     DescriptiveDetail?: {
+      Extent?: Array<{
+        ExtentType?: string;
+        ExtentValue?: string;
+      }>;
+      Measure?: Array<{
+        MeasureType?: string;
+        Measurement?: string;
+        MeasureUnitCode?: string;
+      }>;
       TitleDetail?: {
         TitleElement?: {
           TitleText?: { content?: string };
@@ -63,6 +72,30 @@ interface OpenBDResponse {
 
 function normalizeISBN(isbn: string): string {
   return isbn.replace(/[-\s]/g, '');
+}
+
+function toMm(measurement?: string, unitCode?: string): number | undefined {
+  if (!measurement) return undefined;
+  const v = Number.parseFloat(measurement);
+  if (!Number.isFinite(v) || v <= 0) return undefined;
+  if (!unitCode || unitCode === 'mm') return v;
+  if (unitCode === 'cm') return v * 10;
+  return undefined;
+}
+
+function estimateDimensions(params: {
+  pageCount?: number;
+  heightMm?: number;
+  widthMm?: number;
+  thicknessMm?: number;
+}) {
+  const pageCount = params.pageCount;
+  const heightMm = params.heightMm ?? 210;
+  const widthMm = params.widthMm ?? 148;
+  const thicknessMm =
+    params.thicknessMm ??
+    (pageCount && pageCount > 0 ? Math.max(10, Math.min(60, 10 + pageCount * 0.055)) : 22);
+  return { heightMm, widthMm, thicknessMm, pageCount };
 }
 
 export async function fetchBookInfoFromGoogleBooks(isbn: string): Promise<Partial<Book> | null> {
@@ -108,6 +141,10 @@ export async function fetchBookInfoFromGoogleBooks(isbn: string): Promise<Partia
       description: volume.description,
       coverImageUrl: imageLink?.replace('http:', 'https:'),
       tags: volume.categories || [],
+      dimensions: {
+        ...estimateDimensions({ pageCount: volume.pageCount }),
+        source: 'estimated',
+      },
     };
   } catch (error) {
     console.error('Google Books API fetch error:', error);
@@ -157,6 +194,24 @@ export async function fetchBookInfoFromOpenBD(isbn: string): Promise<Partial<Boo
       description = descContent?.Text;
     }
     
+    const measure = onix?.DescriptiveDetail?.Measure ?? [];
+    const heightMm = toMm(
+      measure.find((m) => m.MeasureType === '01')?.Measurement,
+      measure.find((m) => m.MeasureType === '01')?.MeasureUnitCode
+    );
+    const widthMm = toMm(
+      measure.find((m) => m.MeasureType === '02')?.Measurement,
+      measure.find((m) => m.MeasureType === '02')?.MeasureUnitCode
+    );
+    const thicknessMm = toMm(
+      measure.find((m) => m.MeasureType === '03')?.Measurement,
+      measure.find((m) => m.MeasureType === '03')?.MeasureUnitCode
+    );
+    const onixPageCount = onix?.DescriptiveDetail?.Extent?.find((e) => e.ExtentType === '11')?.ExtentValue;
+    const pageCount = onixPageCount ? Number.parseInt(onixPageCount, 10) : undefined;
+
+    const hasPhysical = Boolean(heightMm || widthMm || thicknessMm);
+
     return {
       isbn: normalizedISBN,
       title: summary.title || '',
@@ -166,6 +221,10 @@ export async function fetchBookInfoFromOpenBD(isbn: string): Promise<Partial<Boo
       publishedYear,
       description,
       coverImageUrl: summary.cover,
+      dimensions: {
+        ...estimateDimensions({ pageCount, heightMm, widthMm, thicknessMm }),
+        source: hasPhysical ? 'api' : 'estimated',
+      },
     };
   } catch (error) {
     console.error('OpenBD API fetch error:', error);
@@ -200,6 +259,7 @@ export async function fetchBookInfo(isbn: string): Promise<Partial<Book> | null>
     description: primary.description || fallback.description,
     coverImageUrl: primary.coverImageUrl || fallback.coverImageUrl,
     tags: primary.tags || fallback.tags || [],
+    dimensions: primary.dimensions || fallback.dimensions,
   };
 }
 

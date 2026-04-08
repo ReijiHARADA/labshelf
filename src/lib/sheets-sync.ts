@@ -14,6 +14,7 @@ import {
   loadCategoryColorsFromDatabase,
 } from './books-db';
 import { setCategoryColorOverrides } from './spine-colors';
+import type { BookDimensions } from '@/types/book';
 
 interface SheetRow {
   id?: string;
@@ -81,6 +82,38 @@ function normalizeISBN(isbn: string): string {
   return isbn.replace(/[-\s]/g, '');
 }
 
+function parseFloatNumber(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const n = Number.parseFloat(value);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+function parseRowDimensions(row: SheetRow): BookDimensions | undefined {
+  const heightMm = parseFloatNumber(
+    pickRowValue(row, ['heightMm', 'height_mm', 'height', '高さ', 'bookHeightMm'])
+  );
+  const widthMm = parseFloatNumber(
+    pickRowValue(row, ['widthMm', 'width_mm', 'width', '幅', 'bookWidthMm'])
+  );
+  const thicknessMm = parseFloatNumber(
+    pickRowValue(row, ['thicknessMm', 'thickness_mm', 'thickness', '厚み', 'spineWidthMm'])
+  );
+  const pageCount = parseNumber(
+    pickRowValue(row, ['pageCount', 'page_count', 'pages', 'ページ数']),
+    0
+  );
+  const hasSize = Boolean(heightMm || widthMm || thicknessMm || pageCount);
+  if (!hasSize) return undefined;
+  return {
+    heightMm,
+    widthMm,
+    thicknessMm,
+    pageCount: pageCount > 0 ? pageCount : undefined,
+    source: 'manual',
+    manual: true,
+  };
+}
+
 async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | null> {
   const isbn = pickRowValue(row, ['isbn', 'ISBN'])?.trim();
   
@@ -107,6 +140,8 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
     '表紙',
   ])?.trim();
   let subtitle = pickRowValue(row, ['subtitle', 'サブタイトル'])?.trim();
+  const rowDimensions = parseRowDimensions(row);
+  let apiDimensions: BookDimensions | undefined;
   
   if (!title || !author || !coverImageUrl || !description || !publisher) {
     console.log(`行${index + 2}: ISBN ${normalizedISBN} の情報をAPIから取得中...`);
@@ -120,6 +155,7 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
       description = description || apiData.description;
       coverImageUrl = coverImageUrl || apiData.coverImageUrl;
       subtitle = subtitle || apiData.subtitle;
+      apiDimensions = apiData.dimensions;
       
       console.log(`  -> 取得成功: ${title}`);
     } else {
@@ -156,6 +192,7 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
     createdAt: parseDate(pickRowValue(row, ['createdAt', 'createdat', 'created_at'])),
     updatedAt: parseDate(pickRowValue(row, ['updatedAt', 'updatedat', 'updated_at'])),
     memo: pickRowValue(row, ['memo', 'メモ'])?.trim() || undefined,
+    dimensions: rowDimensions ?? apiDimensions,
   };
 }
 
@@ -439,6 +476,7 @@ export async function syncFromISBNList(isbns: string[]): Promise<{
           tags: apiData.tags || [],
           description: apiData.description,
           coverImageUrl: apiData.coverImageUrl,
+          dimensions: apiData.dimensions,
           recommended: false,
           latestFlag: true,
           popularityScore: 50,
