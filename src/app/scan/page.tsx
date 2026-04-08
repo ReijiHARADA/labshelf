@@ -2,12 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Camera, CheckCircle2, AlertCircle, RefreshCw, BookPlus } from 'lucide-react';
+import {
+  Camera,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  BookPlus,
+  Table2,
+  ExternalLink,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { normalizeToIsbn13 } from '@/lib/isbn';
-import { LABSHELF_INGEST_TOKEN_KEY } from '@/lib/labshelf-client-storage';
+import {
+  LABSHELF_INGEST_TOKEN_KEY,
+  LABSHELF_SHEET_ID_KEY,
+} from '@/lib/labshelf-client-storage';
 
 type ScanStatus =
   | { type: 'idle' }
@@ -76,6 +87,8 @@ export default function ScanPage() {
   const [deviceId, setDeviceId] = useState<string>('');
   const [token, setToken] = useState<string>('');
   const [lastRaw, setLastRaw] = useState<string>('');
+  const [savedSheetId, setSavedSheetId] = useState('');
+
   const [result, setResult] = useState<{
     ok: boolean;
     tone: ResultTone;
@@ -96,9 +109,17 @@ export default function ScanPage() {
           ? localStorage.getItem(LABSHELF_INGEST_TOKEN_KEY) || ''
           : ''
       );
+    const readSheetId = () =>
+      setSavedSheetId(
+        typeof window !== 'undefined'
+          ? localStorage.getItem(LABSHELF_SHEET_ID_KEY) || ''
+          : ''
+      );
     readToken();
+    readSheetId();
     const onStorage = (e: StorageEvent) => {
       if (e.key === LABSHELF_INGEST_TOKEN_KEY) readToken();
+      if (e.key === LABSHELF_SHEET_ID_KEY) readSheetId();
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
@@ -355,6 +376,11 @@ export default function ScanPage() {
   const foundIsbn = status.type === 'found' ? status.isbn : '';
   const isCameraOn =
     status.type === 'running' || status.type === 'found' || status.type === 'error';
+  const showVideoPreview =
+    status.type === 'starting' ||
+    status.type === 'running' ||
+    status.type === 'found' ||
+    status.type === 'error';
   const frameClass =
     status.type === 'found'
       ? 'border-emerald-400'
@@ -373,113 +399,182 @@ export default function ScanPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold">スキャンして追加</h1>
             <p className="mt-2 text-muted-foreground">
-              スマホ/PCのカメラでISBNバーコードを読み取り、そのままDBとスプレッドシートに追加します。
+              本の登録は次の2通りです。画面幅が広いときは横並びになるため、スクロールせずに両方のやり方が一覧できます。
             </p>
           </div>
-          <Button variant="outline" onClick={refreshDevices}>
+          <Button variant="outline" onClick={refreshDevices} className="shrink-0 self-start">
             <RefreshCw className="h-4 w-4 mr-2" />
             カメラ更新
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Camera className="h-5 w-5" />
-              カメラ
-            </CardTitle>
-            <CardDescription>
-              {supportsDetector
-                ? 'このブラウザはBarcodeDetectorに対応しています。'
-                : 'BarcodeDetector非対応のため、フォールバック方式で読み取ります。'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
-              <div className="flex-1">
-                <label className="text-sm font-medium">使用するカメラ</label>
-                <select
-                  className={cn(
-                    'mt-1 w-full h-11 rounded-md border bg-background px-3 text-sm'
-                  )}
-                  value={deviceId}
-                  onChange={(e) => setDeviceId(e.target.value)}
-                >
-                  {devices.length === 0 && (
-                    <option value="">（カメラが見つかりません）</option>
-                  )}
-                  {devices.map((d, idx) => (
-                    <option key={d.deviceId} value={d.deviceId}>
-                      {d.label || `カメラ ${idx + 1}`}
-                    </option>
-                  ))}
-                </select>
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Camera className="h-5 w-5" />
+                バーコードで追加
+              </CardTitle>
+              <CardDescription className="space-y-2">
+                <p>
+                  <span className="font-medium text-foreground">使い方: </span>
+                  「開始」を押してカメラを起動し、本の背表紙などにあるISBNバーコードを、画面中央の枠の中に入れてください。読み取れると自動でデータベースとスプレッドシートに追加されます。
+                </p>
+                <p className="text-xs">
+                  {supportsDetector
+                    ? 'このブラウザでは BarcodeDetector を使って読み取ります。'
+                    : 'このブラウザでは代替の読み取り方式を使います。'}
+                </p>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="flex-1">
+                  <label className="text-sm font-medium">使用するカメラ</label>
+                  <select
+                    className={cn(
+                      'mt-1 w-full h-11 rounded-md border bg-background px-3 text-sm'
+                    )}
+                    value={deviceId}
+                    onChange={(e) => setDeviceId(e.target.value)}
+                  >
+                    {devices.length === 0 && (
+                      <option value="">（カメラが見つかりません）</option>
+                    )}
+                    {devices.map((d, idx) => (
+                      <option key={d.deviceId} value={d.deviceId}>
+                        {d.label || `カメラ ${idx + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="shrink-0">
+                  <Button
+                    className="h-11 min-w-28"
+                    onClick={isCameraOn ? stopCamera : startCamera}
+                    disabled={status.type === 'starting'}
+                    variant={isCameraOn ? 'destructive' : 'default'}
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    {status.type === 'starting'
+                      ? '起動中...'
+                      : isCameraOn
+                        ? '停止'
+                        : '開始'}
+                  </Button>
+                </div>
               </div>
-              <div className="shrink-0">
-                <Button
-                  className="h-11 min-w-28"
-                  onClick={isCameraOn ? stopCamera : startCamera}
-                  disabled={status.type === 'starting'}
-                  variant={isCameraOn ? 'destructive' : 'default'}
-                >
-                  <Camera className="h-4 w-4 mr-2" />
-                  {status.type === 'starting'
-                    ? '起動中...'
-                    : isCameraOn
-                      ? '停止'
-                      : '開始'}
-                </Button>
-              </div>
-            </div>
 
-            <div className={cn('relative overflow-hidden rounded-xl border-2 bg-black/95 transition-colors', frameClass)}>
-              <video
-                ref={videoRef}
-                className="w-full h-[320px] sm:h-[420px] object-contain"
-                muted
-                playsInline
-              />
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              {showVideoPreview ? (
                 <div
-                  className="rounded-lg border-2 border-emerald-300/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]"
-                  style={{
-                    width: `${GUIDE_WIDTH_RATIO * 100}%`,
-                    height: `${GUIDE_HEIGHT_RATIO * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            {status.type === 'error' && (
-              <div className="flex items-center gap-2 text-sm text-red-700">
-                <AlertCircle className="h-4 w-4" />
-                {status.message}
-              </div>
-            )}
-            {status.type === 'running' && (
-              <div className="text-sm text-muted-foreground">
-                バーコードを枠内に入れてください。
-                {lastRaw ? `（直近: ${lastRaw}）` : ''}
-              </div>
-            )}
-            {status.type === 'found' && (
-              <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">検出したISBN</p>
-                  <p className="font-mono text-lg truncate">{foundIsbn}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    自動で追加しています...
+                  className={cn(
+                    'relative overflow-hidden rounded-xl border-2 bg-black/95 transition-colors',
+                    frameClass
+                  )}
+                >
+                  <video
+                    ref={videoRef}
+                    className="w-full h-[320px] sm:h-[420px] object-contain"
+                    muted
+                    playsInline
+                  />
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <div
+                      className="rounded-lg border-2 border-emerald-300/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]"
+                      style={{
+                        width: `${GUIDE_WIDTH_RATIO * 100}%`,
+                        height: `${GUIDE_HEIGHT_RATIO * 100}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+                  <Camera className="h-8 w-8 opacity-40" />
+                  <p>
+                    「開始」を押すと、ここにカメラ映像が表示されます。
                   </p>
                 </div>
-                <BookPlus className="h-5 w-5 text-muted-foreground" />
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+
+              {status.type === 'error' && (
+                <div className="flex items-center gap-2 text-sm text-red-700">
+                  <AlertCircle className="h-4 w-4" />
+                  {status.message}
+                </div>
+              )}
+              {status.type === 'running' && (
+                <div className="text-sm text-muted-foreground">
+                  バーコードを枠内に入れてください。
+                  {lastRaw ? `（直近: ${lastRaw}）` : ''}
+                </div>
+              )}
+              {status.type === 'found' && (
+                <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">検出したISBN</p>
+                    <p className="font-mono text-lg truncate">{foundIsbn}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      自動で追加しています...
+                    </p>
+                  </div>
+                  <BookPlus className="h-5 w-5 text-muted-foreground" />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Table2 className="h-5 w-5" />
+                スプレッドシートに直接追加
+              </CardTitle>
+              <CardDescription>
+                スプレッドシートに行を追加し、管理画面の「今すぐ同期」でデータベースに取り込みます（カメラは不要です）。
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-muted-foreground">
+              <ol className="list-decimal space-y-2 pl-5">
+                <li>
+                  スプレッドシートを開き、新しい行に{' '}
+                  <span className="font-medium text-foreground">ISBN</span>（と分かれば{' '}
+                  <span className="font-medium text-foreground">タイトル</span>）を入力します。
+                </li>
+                <li>
+                  <Link href="/admin" className="font-medium text-primary underline underline-offset-2">
+                    管理画面
+                  </Link>
+                  で「今すぐ同期」を実行すると、反映されます。
+                </li>
+              </ol>
+              {savedSheetId ? (
+                <Button variant="outline" className="w-full sm:w-auto" asChild>
+                  <a
+                    href={`https://docs.google.com/spreadsheets/d/${savedSheetId}/edit`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    スプレッドシートを開く
+                  </a>
+                </Button>
+              ) : (
+                <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-950">
+                  スプレッドシートIDが未設定です。{' '}
+                  <Link href="/admin" className="font-medium underline underline-offset-2">
+                    管理画面
+                  </Link>
+                  で保存してください。
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {result && (
           <div

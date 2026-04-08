@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Search, Settings, Menu, X, ScanLine } from 'lucide-react';
+import { BookOpen, Search, Settings, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -63,17 +63,15 @@ export function Header() {
                 <span className="sr-only">検索</span>
               </Link>
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden sm:flex h-9 w-9 rounded-lg"
-              asChild
+            <Link
+              href="/scan"
+              className={cn(
+                'inline-flex h-9 shrink-0 items-center rounded-full bg-zinc-950 px-3 text-xs font-medium text-white shadow-sm transition-colors hover:bg-zinc-800 sm:px-3.5 sm:text-sm',
+                pathname === '/scan' && 'ring-2 ring-zinc-950/20 ring-offset-2 ring-offset-background'
+              )}
             >
-              <Link href="/scan">
-                <ScanLine className="h-4.5 w-4.5" />
-                <span className="sr-only">スキャン</span>
-              </Link>
-            </Button>
+              本を取り込む
+            </Link>
             <AdminLinkWithSetupGuide />
 
             {/* Mobile menu button */}
@@ -115,8 +113,7 @@ export function Header() {
               <div className="flex gap-2 mt-2 px-4">
                 <Button variant="outline" size="sm" className="flex-1" asChild>
                   <Link href="/scan" onClick={() => setMobileMenuOpen(false)}>
-                    <ScanLine className="h-4 w-4 mr-2" />
-                    スキャン
+                    本を取り込む
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" className="flex-1" asChild>
