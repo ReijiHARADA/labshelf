@@ -7,6 +7,7 @@ import {
   setCustomCategories,
 } from './books-store';
 import { fetchBookInfo } from './book-api';
+import { fetchAmazonCoverImage } from './amazon-cover';
 import { applyAutoClassification } from './book-classifier';
 import {
   loadBooksFromDatabase,
@@ -162,7 +163,10 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
 
   if (needsCoreMetadata || needsDimensions) {
     console.log(`行${index + 2}: ISBN ${normalizedISBN} の情報をAPIから取得中...`);
-    const apiData = await fetchBookInfo(normalizedISBN);
+    const apiData = await fetchBookInfo(normalizedISBN, {
+      title: title || undefined,
+      author: author || undefined,
+    });
     
     if (apiData) {
       title = title || apiData.title || '';
@@ -178,6 +182,14 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
     } else {
       console.log(`  -> API取得失敗`);
     }
+  }
+
+  if (!coverImageUrl && title) {
+    const amazonCover = await fetchAmazonCoverImage(normalizedISBN, {
+      title,
+      author: author || undefined,
+    });
+    coverImageUrl = amazonCover || coverImageUrl;
   }
   
   if (!title) {

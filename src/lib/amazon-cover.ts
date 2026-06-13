@@ -6,6 +6,12 @@ const AMAZON_FETCH_HEADERS: HeadersInit = {
 };
 
 const FETCH_TIMEOUT_MS = 12_000;
+const MIN_HTML_LENGTH = 1_200;
+
+export type AmazonCoverHints = {
+  title?: string;
+  author?: string;
+};
 
 function normalizeIsbnDigits(isbn: string): string {
   return isbn.replace(/[^0-9Xx]/g, '').toUpperCase();
@@ -44,28 +50,50 @@ function decodeHtmlUrl(value: string): string {
   return value
     .replace(/\\u002F/g, '/')
     .replace(/\\"/g, '"')
-    .replace(/&amp;/g, '&');
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"');
+}
+
+function isAmazonImageUrl(url: string): boolean {
+  return /media-amazon\.com\/images\/(I|P)\//i.test(url);
+}
+
+function normalizeSearchQuery(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed || undefined;
+}
+
+function buildAmazonSearchUrl(query: string, category = 'stripbooks'): string {
+  const params = new URLSearchParams({ k: query, i: category });
+  return `https://www.amazon.co.jp/s?${params.toString()}`;
+}
+
+function pickFirstAmazonImageUrl(candidates: Array<string | null | undefined>): string | null {
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const url = upgradeAmazonImageUrl(decodeHtmlUrl(candidate));
+    if (isAmazonImageUrl(url)) return url;
+  }
+  return null;
 }
 
 /** 商品ページ HTML からメイン画像（1枚目）URLを抽出 */
 export function extractCoverFromProductHtml(html: string): string | null {
   const patterns = [
+    /property="og:image"\s+content="(https:\/\/[^"]+)"/i,
     /"hiRes":"(https:\/\/m\.media-amazon\.com\/images\/I\/[^"]+)"/,
     /"large":"(https:\/\/m\.media-amazon\.com\/images\/I\/[^"]+)"/,
+    /"mainUrl":"(https:\/\/m\.media-amazon\.com\/images\/I\/[^"]+)"/,
     /data-old-hires="(https:\/\/m\.media-amazon\.com\/images\/I\/[^"]+)"/,
     /id="landingImage"[^>]*\ssrc="(https:\/\/[^"]+)"/,
     /id="imgBlkFront"[^>]*\ssrc="(https:\/\/[^"]+)"/,
-    /"(https:\/\/m\.media-amazon\.com\/images\/I\/[A-Za-z0-9+._%-]+)"/,
+    /data-a-dynamic-image="\{&quot;(https:\/\/m\.media-amazon\.com\/images\/I\/[^&]+)/,
+    /"(https:\/\/m\.media-amazon\.com\/images\/I\/[A-Za-z0-9+._%-]+\._[A-Z0-9_,]+_\.(?:jpg|png|webp))"/i,
   ];
 
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (!match?.[1]) continue;
-    const url = upgradeAmazonImageUrl(decodeHtmlUrl(match[1]));
-    if (url.includes('media-amazon.com/images/')) return url;
-  }
-
-  return null;
+  return pickFirstAmazonImageUrl(
+    patterns.map((pattern) => html.match(pattern)?.[1] ?? null)
+  );
 }
 
 export function extractFirstAsinFromSearchHtml(html: string): string | null {
@@ -77,6 +105,19 @@ export function extractFirstAsinFromSearchHtml(html: string): string | null {
 
   const dpMatch = html.match(/\/dp\/([A-Z0-9]{10})/);
   return dpMatch?.[1] ?? null;
+}
+
+/** 検索結果 HTML から先頭商品の表紙 URL を抽出 */
+export function extractCoverFromSearchHtml(html: string): string | null {
+  const patterns = [
+    /<img[^>]*class="[^"]*s-image[^"]*"[^>]*src="(https:\/\/m\.media-amazon\.com\/images\/[^"]+)"/i,
+    /<img[^>]*src="(https:\/\/m\.media-amazon\.com\/images\/I\/[^"]+)"[^>]*class="[^"]*s-image/i,
+    /src="(https:\/\/m\.media-amazon\.com\/images\/I\/[A-Za-z0-9+._%-]+\._[A-Z0-9_,]+_\.(?:jpg|png|webp))"/i,
+  ];
+
+  return pickFirstAmazonImageUrl(
+    patterns.map((pattern) => html.match(pattern)?.[1] ?? null)
+  );
 }
 
 /** 可能なら高解像度の Amazon CDN URL に正規化 */
@@ -96,6 +137,28 @@ export function buildAmazonProductImageUrl(asin: string): string {
   return `https://m.media-amazon.com/images/P/${asin}.09._SL1500_.jpg`;
 }
 
+function isLikelyRealImage(bytes: Uint8Array): boolean {
+  if (bytes.length < 4) return false;
+  const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const isPng =
+    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  const isWebp =
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50;
+  const isTinyGif =
+    bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes.length < 200;
+
+  if (isTinyGif) return false;
+  return isJpeg || isPng || isWebp || bytes.length > 500;
+}
+
 async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
   return fetch(url, {
     ...init,
@@ -111,23 +174,11 @@ async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Respon
 /** 1x1 プレースホルダ GIF 等を除外 */
 export async function isValidAmazonCoverUrl(url: string): Promise<boolean> {
   try {
-    let response = await fetchWithTimeout(url, { method: 'HEAD' });
-    if (response.status === 405 || response.status === 403) {
-      response = await fetchWithTimeout(url, {
-        method: 'GET',
-        headers: { Range: 'bytes=0-1023' },
-      });
-    }
+    let response = await fetchWithTimeout(url, { method: 'GET' });
     if (!response.ok) return false;
 
-    const contentType = (response.headers.get('content-type') ?? '').toLowerCase();
-    const contentLength = Number.parseInt(response.headers.get('content-length') ?? '0', 10);
-
-    if (!contentType.startsWith('image/')) return false;
-    if (contentType.includes('gif') && contentLength > 0 && contentLength < 200) return false;
-    if (contentLength > 0 && contentLength < 200) return false;
-
-    return true;
+    const sample = new Uint8Array(await response.arrayBuffer());
+    return isLikelyRealImage(sample);
   } catch {
     return false;
   }
@@ -138,55 +189,87 @@ async function fetchAmazonHtml(url: string): Promise<string | null> {
     const response = await fetchWithTimeout(url);
     if (!response.ok) return null;
     const html = await response.text();
-    if (html.length < 5_000) return null;
+    if (html.length < MIN_HTML_LENGTH) return null;
     return html;
   } catch {
     return null;
   }
 }
 
+async function acceptCoverUrl(
+  url: string | null,
+  options: { trustWithoutValidation?: boolean } = {}
+): Promise<string | null> {
+  if (!url || !isAmazonImageUrl(url)) return null;
+  if (await isValidAmazonCoverUrl(url)) return url;
+  return options.trustWithoutValidation ? url : null;
+}
+
 async function resolveCoverFromProductPage(asin: string): Promise<string | null> {
   const html = await fetchAmazonHtml(`https://www.amazon.co.jp/dp/${asin}`);
-  if (!html) return null;
-
-  const fromHtml = extractCoverFromProductHtml(html);
-  if (fromHtml && (await isValidAmazonCoverUrl(fromHtml))) {
-    return fromHtml;
+  if (html) {
+    const fromHtml = await acceptCoverUrl(extractCoverFromProductHtml(html), {
+      trustWithoutValidation: true,
+    });
+    if (fromHtml) return fromHtml;
   }
 
   const cdnUrl = buildAmazonProductImageUrl(asin);
-  if (await isValidAmazonCoverUrl(cdnUrl)) {
-    return cdnUrl;
-  }
+  return acceptCoverUrl(cdnUrl);
+}
 
-  return null;
+async function resolveCoverFromSearch(query: string): Promise<string | null> {
+  const searchHtml = await fetchAmazonHtml(buildAmazonSearchUrl(query));
+  if (!searchHtml) return null;
+
+  const fromSearchImage = await acceptCoverUrl(extractCoverFromSearchHtml(searchHtml), {
+    trustWithoutValidation: true,
+  });
+  if (fromSearchImage) return fromSearchImage;
+
+  const asin = extractFirstAsinFromSearchHtml(searchHtml);
+  if (!asin) return null;
+
+  return resolveCoverFromProductPage(asin);
+}
+
+function buildTitleSearchQueries(hints: AmazonCoverHints): string[] {
+  const title = normalizeSearchQuery(hints.title);
+  const author = normalizeSearchQuery(hints.author);
+  if (!title) return [];
+
+  const queries = [title];
+  if (author) queries.push(`${title} ${author}`);
+  return [...new Set(queries)];
 }
 
 /**
- * Amazon 商品ページのメイン画像（1枚目）を ISBN から取得する。
- * 商品ページ HTML → CDN URL の順で試行し、既存 API のフォールバック用。
+ * Amazon 商品ページのメイン画像（1枚目）を ISBN / タイトルから取得する。
  */
-export async function fetchAmazonCoverImage(isbn: string): Promise<string | null> {
+export async function fetchAmazonCoverImage(
+  isbn: string,
+  hints: AmazonCoverHints = {}
+): Promise<string | null> {
   const isbn10 = resolveIsbn10(isbn);
   const isbn13 = resolveIsbn13(isbn);
   const lookupKey = isbn13 ?? normalizeIsbnDigits(isbn);
 
-  if (!isbn10 && !lookupKey) return null;
+  if (!isbn10 && !lookupKey && !hints.title) return null;
 
   if (isbn10) {
     const fromProduct = await resolveCoverFromProductPage(isbn10);
     if (fromProduct) return fromProduct;
   }
 
-  if (lookupKey) {
-    const searchHtml = await fetchAmazonHtml(
-      `https://www.amazon.co.jp/s?k=${encodeURIComponent(lookupKey)}&i=stripbooks`
-    );
-    const asin = searchHtml ? extractFirstAsinFromSearchHtml(searchHtml) : null;
-    if (asin && asin !== isbn10) {
-      const fromSearch = await resolveCoverFromProductPage(asin);
-      if (fromSearch) return fromSearch;
-    }
+  const isbnQueries = [...new Set([lookupKey, isbn10].filter(Boolean) as string[])];
+  for (const query of isbnQueries) {
+    const fromIsbnSearch = await resolveCoverFromSearch(query);
+    if (fromIsbnSearch) return fromIsbnSearch;
+  }
+
+  for (const query of buildTitleSearchQueries(hints)) {
+    const fromTitleSearch = await resolveCoverFromSearch(query);
+    if (fromTitleSearch) return fromTitleSearch;
   }
 
   return null;

@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   buildAmazonProductImageUrl,
   extractCoverFromProductHtml,
+  extractCoverFromSearchHtml,
   extractFirstAsinFromSearchHtml,
   isbn13ToIsbn10,
   upgradeAmazonImageUrl,
@@ -11,6 +12,7 @@ import {
 describe('amazon-cover', () => {
   it('ISBN-13 を ISBN-10 に変換する', () => {
     assert.equal(isbn13ToIsbn10('9784822289125'), '4822289125');
+    assert.equal(isbn13ToIsbn10('9784802511506'), '4802511507');
     assert.equal(isbn13ToIsbn10('9791234567890'), null);
   });
 
@@ -38,6 +40,26 @@ describe('amazon-cover', () => {
       </div>
     `;
     assert.equal(extractFirstAsinFromSearchHtml(html), '4822289120');
+  });
+
+  it('検索結果 HTML から表紙画像を抽出する', () => {
+    const html = `
+      <img class="s-image" src="https://m.media-amazon.com/images/I/714hY7G-uwL._AC_UL320_.jpg" />
+    `;
+    assert.equal(
+      extractCoverFromSearchHtml(html),
+      'https://m.media-amazon.com/images/I/714hY7G-uwL._AC_SL1500_.jpg'
+    );
+  });
+
+  it('og:image から商品ページ表紙を抽出する', () => {
+    const html = `
+      <meta property="og:image" content="https://m.media-amazon.com/images/I/714hY7G-uwL._AC_SL500_.jpg" />
+    `;
+    assert.equal(
+      extractCoverFromProductHtml(html),
+      'https://m.media-amazon.com/images/I/714hY7G-uwL._AC_SL1500_.jpg'
+    );
   });
 
   it('Amazon 画像 URL を高解像度に正規化する', () => {

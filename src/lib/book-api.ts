@@ -233,7 +233,10 @@ export async function fetchBookInfoFromOpenBD(isbn: string): Promise<Partial<Boo
   }
 }
 
-export async function fetchBookInfo(isbn: string): Promise<Partial<Book> | null> {
+export async function fetchBookInfo(
+  isbn: string,
+  hints: { title?: string; author?: string } = {}
+): Promise<Partial<Book> | null> {
   const normalizedISBN = normalizeISBN(isbn);
   
   if (!normalizedISBN || normalizedISBN.length < 10) {
@@ -242,7 +245,16 @@ export async function fetchBookInfo(isbn: string): Promise<Partial<Book> | null>
   
   const openBDResult = await fetchBookInfoFromOpenBD(normalizedISBN);
   const googleResult = await fetchBookInfoFromGoogleBooks(normalizedISBN);
-  const amazonCover = await fetchAmazonCoverImage(normalizedISBN);
+
+  const mergedTitle =
+    hints.title?.trim() || openBDResult?.title || googleResult?.title || undefined;
+  const mergedAuthor =
+    hints.author?.trim() || openBDResult?.author || googleResult?.author || undefined;
+
+  const amazonCover = await fetchAmazonCoverImage(normalizedISBN, {
+    title: mergedTitle,
+    author: mergedAuthor,
+  });
 
   if (!openBDResult && !googleResult && !amazonCover) {
     return null;
