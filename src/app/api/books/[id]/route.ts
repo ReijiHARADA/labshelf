@@ -13,6 +13,7 @@ import {
   updateBookLoanInDatabase,
   updateBookDimensionsInDatabase,
   updateBookShelfInDatabase,
+  updateBookSpineColorInDatabase,
 } from '@/lib/books-db';
 
 export const dynamic = 'force-dynamic';
@@ -94,16 +95,16 @@ export async function PATCH(
             typeof shelfInput.order === 'number' && Number.isFinite(shelfInput.order)
               ? Math.round(shelfInput.order)
               : undefined,
-          orientation:
-            shelfInput.orientation === 'vertical' ||
-            shelfInput.orientation === 'horizontal' ||
-            shelfInput.orientation === 'cover'
-              ? shelfInput.orientation
-              : undefined,
         }
       : undefined;
+  const spineColorInput =
+    typeof body?.spineColor === 'string'
+      ? body.spineColor.trim()
+      : body?.spineColor === null
+        ? null
+        : undefined;
 
-  if (!category && !loanAction && !dimensions && !shelf) {
+  if (!category && !loanAction && !dimensions && !shelf && spineColorInput === undefined) {
     return NextResponse.json(
       { error: '更新内容を指定してください' },
       { status: 400 }
@@ -178,7 +179,12 @@ export async function PATCH(
         }
       : book.dimensions,
     shelfOrder: shelf?.order ?? book.shelfOrder,
-    shelfOrientation: shelf?.orientation ?? book.shelfOrientation,
+    spineColor:
+      spineColorInput === null
+        ? undefined
+        : spineColorInput !== undefined
+          ? spineColorInput
+          : book.spineColor,
     updatedAt: new Date().toISOString(),
   };
 
@@ -209,8 +215,10 @@ export async function PATCH(
     if (shelf) {
       await updateBookShelfInDatabase(id, {
         order: updated.shelfOrder ?? null,
-        orientation: updated.shelfOrientation ?? null,
       });
+    }
+    if (spineColorInput !== undefined) {
+      await updateBookSpineColorInDatabase(id, spineColorInput || null);
     }
   } catch (error) {
     return NextResponse.json(

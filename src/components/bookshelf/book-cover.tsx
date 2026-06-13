@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Book } from '@/types/book';
-import { getSpineColor } from '@/lib/spine-colors';
+import { getBookSpineColor } from '@/lib/spine-colors';
 
 interface BookCoverProps {
   book: Book;
@@ -23,7 +23,7 @@ export function BookCover({
   size = 'md',
   className,
 }: BookCoverProps) {
-  const spineColor = getSpineColor(book.category, book.id);
+  const spineColor = getBookSpineColor(book);
   const [imageError, setImageError] = useState(false);
   const coverSrc = book.coverImageUrl?.replace(/^http:\/\//, 'https://');
 

@@ -33,7 +33,8 @@ export interface Book {
   loanMemo?: string;
   dimensions?: BookDimensions;
   shelfOrder?: number;
-  shelfOrientation?: 'vertical' | 'horizontal' | 'cover';
+  /** 背表紙の色（CSS変数またはHEX）。未設定時はカテゴリ色 */
+  spineColor?: string;
 }
 
 export interface BookSpineStyle {

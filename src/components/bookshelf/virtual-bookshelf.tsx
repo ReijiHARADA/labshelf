@@ -30,18 +30,26 @@ export function VirtualBookshelf({
   const [editMode, setEditMode] = useState(false);
   const [orderedBooks, setOrderedBooks] = useState<Book[]>([]);
 
-  const persistShelf = async (next: Book[]) => {
+  const persistShelfOrder = async (next: Book[]) => {
     await Promise.all(
       next.map((book, idx) =>
         fetch(`/api/books/${encodeURIComponent(book.id)}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            shelf: { order: idx, orientation: book.shelfOrientation ?? 'vertical' },
+            shelf: { order: idx },
           }),
         }).catch(() => undefined)
       )
     );
+  };
+
+  const persistSpineColor = async (bookId: string, color: string) => {
+    await fetch(`/api/books/${encodeURIComponent(bookId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ spineColor: color }),
+    }).catch(() => undefined);
   };
 
   useEffect(() => {
@@ -148,25 +156,15 @@ export function VirtualBookshelf({
       rows[rowIndex] = orderedIds.map((id) => idToBook.get(id)).filter((b): b is Book => Boolean(b));
       const flattened = rows.flat();
       const normalized = flattened.map((b, i) => ({ ...b, shelfOrder: i }));
-      void persistShelf(normalized);
+      void persistShelfOrder(normalized);
       return normalized;
     });
   };
 
-  const cycleOrientation = (bookId: string) => {
-    const order: Array<'vertical' | 'horizontal' | 'cover'> = [
-      'vertical',
-      'horizontal',
-      'cover',
-    ];
+  const changeSpineColor = (bookId: string, color: string) => {
     setOrderedBooks((prev) => {
-      const next = prev.map((b) => {
-        if (b.id !== bookId) return b;
-        const cur = b.shelfOrientation ?? 'vertical';
-        const idx = order.indexOf(cur);
-        return { ...b, shelfOrientation: order[(idx + 1) % order.length] };
-      });
-      void persistShelf(next);
+      const next = prev.map((b) => (b.id === bookId ? { ...b, spineColor: color } : b));
+      void persistSpineColor(bookId, color);
       return next;
     });
   };
@@ -226,7 +224,7 @@ export function VirtualBookshelf({
                   rowIndex={rowIndex}
                   editMode={editMode}
                   onReorder={(ids) => reorderRow(rowIndex, ids)}
-                  onCycleOrientation={cycleOrientation}
+                  onColorChange={changeSpineColor}
                 />
               ))}
             </AnimatePresence>

@@ -17,7 +17,6 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { motion } from 'framer-motion';
 import { BookSpine } from './book-spine';
-import { getSpineHeight, getSpineWidth } from '@/lib/spine-colors';
 import type { Book } from '@/types/book';
 
 interface ShelfRowProps {
@@ -26,13 +25,7 @@ interface ShelfRowProps {
   rowIndex?: number;
   editMode?: boolean;
   onReorder?: (orderedIds: string[]) => void;
-  onCycleOrientation?: (bookId: string) => void;
-}
-
-interface StackPlacement {
-  marginLeft?: string;
-  marginBottom?: string;
-  stackLevel: number;
+  onColorChange?: (bookId: string, color: string) => void;
 }
 
 export function ShelfRow({
@@ -41,7 +34,7 @@ export function ShelfRow({
   rowIndex = 0,
   editMode = false,
   onReorder,
-  onCycleOrientation,
+  onColorChange,
 }: ShelfRowProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -60,52 +53,6 @@ export function ShelfRow({
     onReorder?.(next);
   };
 
-  const placements: StackPlacement[] = [];
-  let prevVisualWidth = 0;
-  let prevVisualHeight = 0;
-  let prevStackLift = 0;
-  let prevStackLevel = 0;
-
-  for (let i = 0; i < books.length; i++) {
-    const current = books[i];
-    const orientation = current.shelfOrientation ?? 'vertical';
-    const isHorizontal = orientation === 'horizontal';
-    const prev = i > 0 ? books[i - 1] : null;
-    const prevOrientation = prev?.shelfOrientation ?? 'vertical';
-    const canStackOnPrev =
-      isHorizontal && i > 0 && (prevOrientation === 'horizontal' || prevOrientation === 'vertical');
-
-    const spineWidth = getSpineWidth(current);
-    const spineHeight = getSpineHeight(current);
-    const visualWidth =
-      orientation === 'cover'
-        ? Math.max(spineHeight * 0.66, 56)
-        : isHorizontal
-          ? spineHeight
-          : spineWidth;
-    const visualHeight = isHorizontal ? spineWidth : spineHeight;
-
-    if (canStackOnPrev) {
-      const stackLift = prevStackLift + prevVisualHeight + 6;
-      const stackLevel = prevStackLevel + 1;
-      placements.push({
-        marginLeft: `${-(prevVisualWidth + 5)}px`,
-        marginBottom: `${stackLift}px`,
-        stackLevel,
-      });
-      prevStackLift = stackLift;
-      prevStackLevel = stackLevel;
-    } else {
-      // Horizontal books can always be placed on the shelf board.
-      placements.push({ stackLevel: 0 });
-      prevStackLift = 0;
-      prevStackLevel = 0;
-    }
-
-    prevVisualWidth = visualWidth;
-    prevVisualHeight = visualHeight;
-  }
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -113,7 +60,6 @@ export function ShelfRow({
       transition={{ duration: 0.4, delay: rowIndex * 0.1 }}
       className="relative"
     >
-      {/* Books container */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -130,16 +76,14 @@ export function ShelfRow({
                 index={index}
                 editMode={editMode}
                 onClick={onBookClick}
-                onCycleOrientation={onCycleOrientation}
-                placement={placements[index] ?? { stackLevel: 0 }}
+                onColorChange={onColorChange}
               />
             ))}
           </div>
         </SortableContext>
       </DndContext>
 
-      {/* Shelf board */}
-      <div 
+      <div
         className="h-3"
         style={{
           background: 'linear-gradient(180deg, #c9b896 0%, #a89070 50%, #8b7355 100%)',
@@ -151,8 +95,7 @@ export function ShelfRow({
         }}
       />
 
-      {/* Shelf front edge */}
-      <div 
+      <div
         className="h-1"
         style={{
           background: 'linear-gradient(180deg, #7a6245 0%, #5c4a35 100%)',
@@ -160,7 +103,6 @@ export function ShelfRow({
         }}
       />
 
-      {/* Shelf shadow on wall */}
       <div
         className="h-4"
         style={{
@@ -178,8 +120,7 @@ function SortableBookItem({
   index,
   editMode,
   onClick,
-  onCycleOrientation,
-  placement,
+  onColorChange,
 }: {
   id: string;
   rowIndex: number;
@@ -187,17 +128,12 @@ function SortableBookItem({
   index: number;
   editMode: boolean;
   onClick?: (book: Book) => void;
-  onCycleOrientation?: (bookId: string) => void;
-  placement: StackPlacement;
+  onColorChange?: (bookId: string, color: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     disabled: !editMode,
   });
-
-  const stackLevel = placement.stackLevel;
-  const marginLeft = placement.marginLeft;
-  const marginBottom = placement.marginBottom;
 
   return (
     <div
@@ -207,9 +143,8 @@ function SortableBookItem({
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
-        marginLeft,
-        marginBottom,
-        zIndex: isDragging ? 100 : index + 10 + stackLevel,
+        zIndex: isDragging ? 100 : index + 10,
+        opacity: isDragging ? 0.85 : 1,
       }}
     >
       <div
@@ -222,7 +157,7 @@ function SortableBookItem({
           onClick={() => !editMode && onClick?.(book)}
           index={index}
           editMode={editMode}
-          onCycleOrientation={() => onCycleOrientation?.(book.id)}
+          onColorChange={(color) => onColorChange?.(book.id, color)}
         />
       </div>
     </div>

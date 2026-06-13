@@ -13,19 +13,22 @@ export const categoryColors: Record<BookCategory | string, string> = {
   その他: 'var(--spine-gray)',
 };
 
-const colorPalette = [
-  'var(--spine-red)',
-  'var(--spine-orange)',
-  'var(--spine-yellow)',
-  'var(--spine-green)',
-  'var(--spine-teal)',
-  'var(--spine-blue)',
-  'var(--spine-indigo)',
-  'var(--spine-purple)',
-  'var(--spine-pink)',
-  'var(--spine-brown)',
-  'var(--spine-navy)',
-];
+export const SPINE_COLOR_OPTIONS = [
+  { name: 'レッド', value: 'var(--spine-red)' },
+  { name: 'オレンジ', value: 'var(--spine-orange)' },
+  { name: 'イエロー', value: 'var(--spine-yellow)' },
+  { name: 'グリーン', value: 'var(--spine-green)' },
+  { name: 'ティール', value: 'var(--spine-teal)' },
+  { name: 'ブルー', value: 'var(--spine-blue)' },
+  { name: 'インディゴ', value: 'var(--spine-indigo)' },
+  { name: 'パープル', value: 'var(--spine-purple)' },
+  { name: 'ピンク', value: 'var(--spine-pink)' },
+  { name: 'ブラウン', value: 'var(--spine-brown)' },
+  { name: 'ネイビー', value: 'var(--spine-navy)' },
+  { name: 'グレー', value: 'var(--spine-gray)' },
+] as const;
+
+const colorPalette = SPINE_COLOR_OPTIONS.map((option) => option.value);
 
 /** ユーザー指定（DB）やセッション内の上書き。キーはカテゴリ名 */
 let categoryColorOverrides: Record<string, string> = {};
@@ -93,6 +96,15 @@ export function getCategoryColor(category: string): string {
 /** @deprecated bookId は色計算に使わない。getCategoryColor と同じ */
 export function getSpineColor(category: string, _bookId?: string): string {
   return getCategoryColor(category);
+}
+
+export function getBookSpineColor(book: {
+  category: string;
+  spineColor?: string;
+}): string {
+  const custom = book.spineColor?.trim();
+  if (custom) return custom;
+  return getCategoryColor(book.category);
 }
 
 function clamp(value: number, min: number, max: number): number {
