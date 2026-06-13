@@ -65,10 +65,18 @@ export function BookCover({
 
   const imageClassName = cn(
     'block max-w-full rounded-md shadow-soft',
-    hasExplicitHeight
-      ? 'h-full w-auto object-contain'
-      : 'h-auto w-full'
+    hasExplicitHeight || hasExplicitWidth ? 'object-contain' : 'h-auto w-full'
   );
+
+  const imageStyle = {
+    ...(hasExplicitHeight ? { height: `${height}px`, width: 'auto' } : {}),
+    ...(hasExplicitWidth && !hasExplicitHeight
+      ? { width: `${width}px`, height: 'auto' }
+      : {}),
+    ...(hasExplicitWidth && hasExplicitHeight
+      ? { maxWidth: `${width}px`, maxHeight: `${height}px` }
+      : {}),
+  };
 
   const wrapperClassName = cn(
     'relative inline-flex max-w-full',
@@ -108,22 +116,21 @@ export function BookCover({
   if (coverSrc && !imageError) {
     return (
       <div className={wrapperClassName} style={sizeStyle}>
-        <div className="relative inline-block max-h-full max-w-full">
-          <img
-            src={coverSrc}
-            alt={book.title}
-            loading="lazy"
-            decoding="async"
-            className={imageClassName}
-            onLoad={handleImageLoad}
-            onError={() => setImageError(true)}
-          />
-          {book.borrowedBy && (
-            <span className="absolute left-1.5 top-1.5 rounded bg-rose-600/90 px-1.5 py-0.5 text-[10px] text-white">
-              貸出中
-            </span>
-          )}
-        </div>
+        <img
+          src={coverSrc}
+          alt={book.title}
+          loading="lazy"
+          decoding="async"
+          className={imageClassName}
+          style={imageStyle}
+          onLoad={handleImageLoad}
+          onError={() => setImageError(true)}
+        />
+        {book.borrowedBy && (
+          <span className="absolute left-1.5 top-1.5 rounded bg-rose-600/90 px-1.5 py-0.5 text-[10px] text-white">
+            貸出中
+          </span>
+        )}
       </div>
     );
   }
