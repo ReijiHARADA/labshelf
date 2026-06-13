@@ -34,7 +34,9 @@ function BookCard({ book, index }: BookCardProps) {
         <Card className="group h-full overflow-hidden border-border/50 hover:border-border hover:shadow-soft-lg transition-all duration-300">
           <CardContent className="p-4">
             <div className="flex gap-4">
-              <BookCover book={book} size="sm" className="flex-shrink-0" />
+              <div className="flex h-24 shrink-0 items-end">
+                <BookCover book={book} height={96} className="max-w-full" />
+              </div>
               <div className="flex-1 min-w-0">
                 <h4 className="font-medium text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
                   {book.title}

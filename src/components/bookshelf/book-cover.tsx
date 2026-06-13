@@ -16,8 +16,8 @@ interface BookCoverProps {
   book: Book;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
-  /** 幅のみ指定。高さは画像の縦横比に合わせて自動 */
   width?: number;
+  height?: number;
 }
 
 const sizeClasses = {
@@ -31,12 +31,16 @@ export function BookCover({
   size = 'md',
   className,
   width,
+  height,
 }: BookCoverProps) {
   const spineColor = getBookSpineColor(book);
   const [imageError, setImageError] = useState(false);
   const coverSrc = normalizeCoverUrl(book.coverImageUrl);
   const [aspectRatio, setAspectRatio] = useState(() => getCoverAspectRatio(book));
+
   const hasExplicitWidth = width != null;
+  const hasExplicitHeight = height != null;
+  const hasExplicitSize = hasExplicitWidth || hasExplicitHeight;
 
   useEffect(() => {
     setImageError(false);
@@ -45,20 +49,10 @@ export function BookCover({
     void loadCoverAspectRatio(coverSrc).then(setAspectRatio);
   }, [book.id, book.coverImageUrl, coverSrc]);
 
-  const widthStyle = hasExplicitWidth ? { width: `${width}px` } : undefined;
-
-  const fallbackClassName = cn(
-    'relative overflow-hidden shadow-soft flex flex-col items-center justify-center p-3',
-    !hasExplicitWidth && sizeClasses[size],
-    className
-  );
-
-  const fallbackStyle = hasExplicitWidth
-    ? { ...widthStyle, aspectRatio: `${aspectRatio}`, backgroundColor: spineColor }
-    : {
-        aspectRatio: `${aspectRatio}`,
-        backgroundColor: spineColor,
-      };
+  const sizeStyle = {
+    ...(hasExplicitWidth ? { width: `${width}px` } : {}),
+    ...(hasExplicitHeight ? { height: `${height}px` } : {}),
+  };
 
   const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
     const img = event.currentTarget;
@@ -69,30 +63,67 @@ export function BookCover({
     setAspectRatio(ratio);
   };
 
+  const imageClassName = cn(
+    'block max-w-full rounded-md shadow-soft',
+    hasExplicitHeight
+      ? 'h-full w-auto object-contain'
+      : 'h-auto w-full'
+  );
+
+  const wrapperClassName = cn(
+    'relative inline-flex max-w-full',
+    !hasExplicitSize && sizeClasses[size],
+    hasExplicitHeight && 'items-end justify-center',
+    className
+  );
+
+  const fallbackWidth =
+    hasExplicitWidth
+      ? width
+      : hasExplicitHeight
+        ? Math.round(height * aspectRatio)
+        : undefined;
+
+  const fallbackHeight =
+    hasExplicitHeight
+      ? height
+      : hasExplicitWidth
+        ? Math.round(width / aspectRatio)
+        : undefined;
+
+  const fallbackClassName = cn(
+    'relative inline-flex max-w-full items-center justify-center overflow-hidden rounded-md shadow-soft p-3',
+    !hasExplicitSize && sizeClasses[size],
+    className
+  );
+
+  const fallbackStyle = {
+    ...sizeStyle,
+    ...(fallbackWidth != null ? { width: `${fallbackWidth}px` } : {}),
+    ...(fallbackHeight != null ? { height: `${fallbackHeight}px` } : {}),
+    ...(!hasExplicitSize ? { aspectRatio: `${aspectRatio}` } : {}),
+    backgroundColor: spineColor,
+  };
+
   if (coverSrc && !imageError) {
     return (
-      <div
-        className={cn(
-          'relative inline-block max-w-full shadow-soft',
-          !hasExplicitWidth && sizeClasses[size],
-          className
-        )}
-        style={widthStyle}
-      >
-        <img
-          src={coverSrc}
-          alt={book.title}
-          loading="lazy"
-          decoding="async"
-          className="block h-auto w-full max-w-full"
-          onLoad={handleImageLoad}
-          onError={() => setImageError(true)}
-        />
-        {book.borrowedBy && (
-          <span className="absolute left-1.5 top-1.5 bg-rose-600/90 text-white text-[10px] px-1.5 py-0.5">
-            貸出中
-          </span>
-        )}
+      <div className={wrapperClassName} style={sizeStyle}>
+        <div className="relative inline-block max-h-full max-w-full">
+          <img
+            src={coverSrc}
+            alt={book.title}
+            loading="lazy"
+            decoding="async"
+            className={imageClassName}
+            onLoad={handleImageLoad}
+            onError={() => setImageError(true)}
+          />
+          {book.borrowedBy && (
+            <span className="absolute left-1.5 top-1.5 rounded bg-rose-600/90 px-1.5 py-0.5 text-[10px] text-white">
+              貸出中
+            </span>
+          )}
+        </div>
       </div>
     );
   }
@@ -101,14 +132,14 @@ export function BookCover({
     <div className={fallbackClassName} style={fallbackStyle}>
       <BookOpen
         className={cn(
-          'text-white/30 mb-2',
-          size === 'lg' || hasExplicitWidth ? 'w-10 h-10' : size === 'md' ? 'w-8 h-8' : 'w-6 h-6'
+          'mb-2 text-white/30',
+          size === 'lg' || hasExplicitSize ? 'h-10 w-10' : size === 'md' ? 'h-8 w-8' : 'h-6 w-6'
         )}
       />
       <p
         className={cn(
-          'text-white/90 text-center font-medium leading-tight',
-          size === 'lg' || hasExplicitWidth ? 'text-xs' : 'text-[10px]'
+          'text-center font-medium leading-tight text-white/90',
+          size === 'lg' || hasExplicitSize ? 'text-xs' : 'text-[10px]'
         )}
         style={{
           display: '-webkit-box',
@@ -120,7 +151,7 @@ export function BookCover({
         {book.title}
       </p>
       {book.borrowedBy && (
-        <span className="absolute left-1.5 top-1.5 bg-rose-600/90 text-white text-[10px] px-1.5 py-0.5">
+        <span className="absolute left-1.5 top-1.5 rounded bg-rose-600/90 px-1.5 py-0.5 text-[10px] text-white">
           貸出中
         </span>
       )}

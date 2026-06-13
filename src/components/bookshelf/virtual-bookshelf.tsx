@@ -8,8 +8,6 @@ import { BookCover } from './book-cover';
 import { Button } from '@/components/ui/button';
 import { X, Pencil, Check } from 'lucide-react';
 import type { Book } from '@/types/book';
-import { getCoverSizeFromHeight } from '@/lib/cover-aspect-ratio';
-import { useCoverAspectRatios } from '@/hooks/use-cover-aspect-ratios';
 import { splitBooksIntoShelves } from '@/lib/shelf-layout';
 
 interface VirtualBookshelfProps {
@@ -81,7 +79,6 @@ export function VirtualBookshelf({
   );
 
   const shelfBooks = useMemo(() => shelves.flat(), [shelves]);
-  const { getRatio } = useCoverAspectRatios(shelfBooks);
   const focusedIndex = useMemo(
     () => shelfBooks.findIndex((book) => book.id === focusedBookId),
     [shelfBooks, focusedBookId]
@@ -98,11 +95,8 @@ export function VirtualBookshelf({
     focusedIndex >= 0 ? shelfBooks.slice(focusedIndex + 1, focusedIndex + 1 + perSideCount) : [];
   const focusedMemo = focusedBook?.memo?.trim();
   const coverTransition = { duration: 0.28, ease: [0.22, 0.86, 0.36, 1] as const };
-  const neighborCoverSize = (book: Book) =>
-    getCoverSizeFromHeight(getRatio(book), 176);
-  const focusedCoverSize = focusedBook
-    ? getCoverSizeFromHeight(getRatio(focusedBook), viewportWidth >= 1280 ? 440 : 380)
-    : null;
+  const neighborCoverHeight = 176;
+  const focusedCoverHeight = viewportWidth >= 1280 ? 440 : 380;
 
   useEffect(() => {
     const onResize = () => setViewportWidth(window.innerWidth);
@@ -281,8 +275,8 @@ export function VirtualBookshelf({
                       >
                         <BookCover
                           book={book}
-                          width={neighborCoverSize(book).width}
-                          className="rounded-md"
+                          height={neighborCoverHeight}
+                          className="max-w-full rounded-md"
                         />
                       </motion.button>
                     ))}
@@ -329,8 +323,8 @@ export function VirtualBookshelf({
                       >
                         <BookCover
                           book={focusedBook}
-                          width={focusedCoverSize?.width}
-                          className="rounded-lg"
+                          height={focusedCoverHeight}
+                          className="max-w-full rounded-lg"
                         />
                       </button>
                     </motion.div>
@@ -386,8 +380,8 @@ export function VirtualBookshelf({
                       >
                         <BookCover
                           book={book}
-                          width={neighborCoverSize(book).width}
-                          className="rounded-md"
+                          height={neighborCoverHeight}
+                          className="max-w-full rounded-md"
                         />
                       </motion.button>
                     ))}

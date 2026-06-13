@@ -270,11 +270,11 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   href={`/books/${relatedBook.id}`}
                   className="group"
                 >
-                  <div className="aspect-[2/3] mb-2">
+                  <div className="mb-2 flex h-52 items-end justify-center">
                     <BookCover
                       book={relatedBook}
-                      size="md"
-                      className="w-full h-full"
+                      height={208}
+                      className="max-w-full"
                     />
                   </div>
                   <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">

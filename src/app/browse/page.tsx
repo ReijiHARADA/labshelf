@@ -501,7 +501,9 @@ export default function BrowsePage() {
                   >
                     <CardContent className="p-4">
                       <div className="flex gap-4">
-                        <BookCover book={book} size="sm" />
+                        <div className="flex h-24 shrink-0 items-end">
+                          <BookCover book={book} height={96} className="max-w-full" />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-medium line-clamp-1">
                             {book.title}

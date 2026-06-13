@@ -162,8 +162,8 @@ function BookListItem({ book, index, onRemove }: BookListItemProps) {
       <Card className="overflow-hidden">
         <CardContent className="p-4">
           <div className="flex gap-4">
-            <Link href={`/books/${book.id}`}>
-              <BookCover book={book} size="sm" />
+            <Link href={`/books/${book.id}`} className="flex h-24 shrink-0 items-end">
+              <BookCover book={book} height={96} className="max-w-full" />
             </Link>
             <div className="flex-1 min-w-0">
               <Link href={`/books/${book.id}`}>

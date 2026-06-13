@@ -62,11 +62,16 @@ export function JustifiedBookGrid({
               style={{ width: `${width}px` }}
               onClick={() => onBookClick?.(book)}
             >
-              <BookCover
-                book={book}
-                width={width}
-                className="w-full"
-              />
+              <div
+                className="flex items-end justify-center"
+                style={{ height: `${height}px` }}
+              >
+                <BookCover
+                  book={book}
+                  height={height}
+                  className="max-w-full"
+                />
+              </div>
               <h3 className="mt-2 h-10 overflow-hidden text-sm font-medium leading-5 line-clamp-2 group-hover:text-primary transition-colors">
                 {book.title}
               </h3>
