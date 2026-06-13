@@ -50,11 +50,7 @@ export function JustifiedBookGrid({
   return (
     <div ref={containerRef} className="space-y-3">
       {rows.map((row, rowIndex) => (
-        <div
-          key={`row-${rowIndex}`}
-          className="flex items-end gap-3"
-          style={{ minHeight: `${row.height}px` }}
-        >
+        <div key={`row-${rowIndex}`} className="flex items-start gap-3">
           {row.boxes.map(({ item: book, width, height }, index) => (
             <motion.button
               key={book.id}
@@ -73,10 +69,10 @@ export function JustifiedBookGrid({
                 height={height}
                 className="w-full"
               />
-              <h3 className="mt-2 text-sm font-medium leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+              <h3 className="mt-2 min-h-[2.75rem] text-sm font-medium leading-snug line-clamp-2 group-hover:text-primary transition-colors">
                 {book.title}
               </h3>
-              <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
+              <p className="mt-0.5 min-h-[1rem] text-xs text-muted-foreground line-clamp-1">
                 {book.author}
               </p>
             </motion.button>
