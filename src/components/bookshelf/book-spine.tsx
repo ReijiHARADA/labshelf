@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { Book } from '@/types/book';
+import { getCategoryColor } from '@/lib/book-category-colors';
 import {
   getBookSpineColor,
   getSpineWidth,
@@ -29,6 +30,8 @@ export function BookSpine({
   onColorChange,
 }: BookSpineProps) {
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const hasCustomSpineColor = Boolean(book.spineColor?.trim());
+  const categoryColor = getCategoryColor(book.category);
   const spineColor = getBookSpineColor(book);
   const spineWidth = getSpineWidth(book);
   const spineHeight = getSpineHeight(book);
@@ -70,12 +73,21 @@ export function BookSpine({
       <div
         className="absolute inset-0 flex flex-col items-center justify-center"
         style={{
-          backgroundColor: spineColor,
-          boxShadow: `
+          backgroundColor: hasCustomSpineColor ? spineColor : categoryColor.background,
+          border: hasCustomSpineColor
+            ? undefined
+            : `1px solid ${categoryColor.border}`,
+          boxShadow: hasCustomSpineColor
+            ? `
             inset 2px 0 4px rgba(0,0,0,0.2),
             inset -2px 0 4px rgba(0,0,0,0.15),
             inset 0 2px 3px rgba(0,0,0,0.1),
             inset 0 -2px 3px rgba(0,0,0,0.1)
+          `
+            : `
+            inset 1px 0 2px rgba(0,0,0,0.06),
+            inset -1px 0 2px rgba(0,0,0,0.04),
+            0 1px 2px rgba(0,0,0,0.08)
           `,
           borderRadius: '1px',
         }}
@@ -132,8 +144,10 @@ export function BookSpine({
           className="spine-text px-0.5 py-2 text-center font-medium leading-tight"
           style={{
             fontSize: spineWidth < 30 ? '9px' : '10px',
-            color: 'rgba(255,255,255,0.92)',
-            textShadow: '0 1px 2px rgba(0,0,0,0.4)',
+            color: hasCustomSpineColor
+              ? 'rgba(255,255,255,0.92)'
+              : categoryColor.text,
+            textShadow: hasCustomSpineColor ? '0 1px 2px rgba(0,0,0,0.4)' : 'none',
             maxHeight: `${spineHeight - 40}px`,
             letterSpacing: '0.02em',
           }}

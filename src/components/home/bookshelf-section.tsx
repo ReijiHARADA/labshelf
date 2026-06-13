@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Clock, Grid3X3, Layers } from 'lucide-react';
 import { VirtualBookshelf } from '@/components/bookshelf';
+import { getUniqueCategoryColors } from '@/lib/book-category-colors';
 import { cn } from '@/lib/utils';
 import type { Book } from '@/types/book';
 
@@ -46,6 +47,13 @@ export function BookshelfSection({
   };
 
   const displayBooks = getDisplayBooks();
+  const categoryLegend = useMemo(
+    () =>
+      getUniqueCategoryColors(displayBooks.map((book) => book.category)).sort((a, b) =>
+        a.category.localeCompare(b.category, 'ja')
+      ),
+    [displayBooks]
+  );
 
   return (
     <section className="pt-4 pb-8">
@@ -107,10 +115,45 @@ export function BookshelfSection({
           />
         </motion.div>
 
-        {/* Book count - subtle */}
-        <p className="text-xs text-muted-foreground mt-4">
-          {displayBooks.length}冊
-        </p>
+        <div className="mt-4 space-y-2">
+          <p className="text-xs text-muted-foreground">{displayBooks.length}冊</p>
+
+          {categoryLegend.length > 0 && (
+            <details className="group text-xs">
+              <summary className="cursor-pointer list-none text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+                <span className="inline-flex items-center gap-1">
+                  カテゴリ凡例
+                  <span className="text-[10px] opacity-70 group-open:rotate-180 transition-transform">
+                    ▼
+                  </span>
+                </span>
+              </summary>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {categoryLegend.map(({ category, color }) => (
+                  <span
+                    key={category}
+                    className="inline-flex items-center gap-1.5 rounded-full border px-2 py-1"
+                    style={{
+                      backgroundColor: color.background,
+                      borderColor: color.border,
+                      color: color.text,
+                    }}
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full border"
+                      style={{
+                        backgroundColor: color.background,
+                        borderColor: color.border,
+                      }}
+                      aria-hidden
+                    />
+                    {category}
+                  </span>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
       </div>
     </section>
   );
