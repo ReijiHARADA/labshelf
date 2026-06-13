@@ -12,7 +12,7 @@ export function getDefaultCoverAspectRatio(): number {
 }
 
 function clampAspectRatio(ratio: number): number {
-  return Math.max(0.35, Math.min(1.2, ratio));
+  return Math.max(0.25, Math.min(3, ratio));
 }
 
 export function cacheCoverAspectRatio(url: string, ratio: number): void {

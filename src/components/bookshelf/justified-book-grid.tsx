@@ -64,15 +64,13 @@ export function JustifiedBookGrid({
             >
               <BookCover
                 book={book}
-                fit="contain"
                 width={width}
-                height={height}
                 className="w-full"
               />
-              <h3 className="mt-2 min-h-[2.75rem] text-sm font-medium leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+              <h3 className="mt-2 h-10 overflow-hidden text-sm font-medium leading-5 line-clamp-2 group-hover:text-primary transition-colors">
                 {book.title}
               </h3>
-              <p className="mt-0.5 min-h-[1rem] text-xs text-muted-foreground line-clamp-1">
+              <p className="mt-0.5 h-4 overflow-hidden text-xs leading-4 text-muted-foreground line-clamp-1">
                 {book.author}
               </p>
             </motion.button>

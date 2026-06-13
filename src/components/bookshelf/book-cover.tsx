@@ -8,6 +8,7 @@ import { getBookSpineColor } from '@/lib/spine-colors';
 import {
   cacheCoverAspectRatio,
   getCoverAspectRatio,
+  loadCoverAspectRatio,
   normalizeCoverUrl,
 } from '@/lib/cover-aspect-ratio';
 
@@ -15,9 +16,8 @@ interface BookCoverProps {
   book: Book;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
-  fit?: 'cover' | 'contain';
+  /** 幅のみ指定。高さは画像の縦横比に合わせて自動 */
   width?: number;
-  height?: number;
 }
 
 const sizeClasses = {
@@ -30,40 +30,31 @@ export function BookCover({
   book,
   size = 'md',
   className,
-  fit = 'contain',
   width,
-  height,
 }: BookCoverProps) {
   const spineColor = getBookSpineColor(book);
   const [imageError, setImageError] = useState(false);
   const coverSrc = normalizeCoverUrl(book.coverImageUrl);
   const [aspectRatio, setAspectRatio] = useState(() => getCoverAspectRatio(book));
-  const hasExplicitSize = width != null && height != null;
+  const hasExplicitWidth = width != null;
 
   useEffect(() => {
-    setAspectRatio(getCoverAspectRatio(book));
     setImageError(false);
-  }, [book.id, book.coverImageUrl]);
+    setAspectRatio(getCoverAspectRatio(book));
+    if (!coverSrc) return;
+    void loadCoverAspectRatio(coverSrc).then(setAspectRatio);
+  }, [book.id, book.coverImageUrl, coverSrc]);
 
-  const containerStyle = hasExplicitSize
-    ? { width: `${width}px`, height: `${height}px` }
-    : undefined;
-
-  const containerClassName = cn(
-    'relative overflow-hidden shadow-soft',
-    !hasExplicitSize && sizeClasses[size],
-    !hasExplicitSize && fit === 'contain' && 'h-auto',
-    className
-  );
+  const widthStyle = hasExplicitWidth ? { width: `${width}px` } : undefined;
 
   const fallbackClassName = cn(
     'relative overflow-hidden shadow-soft flex flex-col items-center justify-center p-3',
-    !hasExplicitSize && sizeClasses[size],
+    !hasExplicitWidth && sizeClasses[size],
     className
   );
 
-  const fallbackStyle = hasExplicitSize
-    ? containerStyle
+  const fallbackStyle = hasExplicitWidth
+    ? { ...widthStyle, aspectRatio: `${aspectRatio}`, backgroundColor: spineColor }
     : {
         aspectRatio: `${aspectRatio}`,
         backgroundColor: spineColor,
@@ -75,31 +66,25 @@ export function BookCover({
 
     const ratio = img.naturalWidth / img.naturalHeight;
     cacheCoverAspectRatio(coverSrc, ratio);
-    if (!hasExplicitSize) {
-      setAspectRatio(ratio);
-    }
+    setAspectRatio(ratio);
   };
 
   if (coverSrc && !imageError) {
     return (
       <div
-        className={containerClassName}
-        style={{
-          ...containerStyle,
-          ...(!hasExplicitSize
-            ? { aspectRatio: `${aspectRatio}`, backgroundColor: spineColor }
-            : { backgroundColor: spineColor }),
-        }}
+        className={cn(
+          'relative inline-block max-w-full shadow-soft',
+          !hasExplicitWidth && sizeClasses[size],
+          className
+        )}
+        style={widthStyle}
       >
         <img
           src={coverSrc}
           alt={book.title}
           loading="lazy"
           decoding="async"
-          className={cn(
-            'block h-full w-full',
-            fit === 'contain' ? 'object-contain' : 'object-cover'
-          )}
+          className="block h-auto w-full max-w-full"
           onLoad={handleImageLoad}
           onError={() => setImageError(true)}
         />
@@ -117,13 +102,13 @@ export function BookCover({
       <BookOpen
         className={cn(
           'text-white/30 mb-2',
-          size === 'lg' || hasExplicitSize ? 'w-10 h-10' : size === 'md' ? 'w-8 h-8' : 'w-6 h-6'
+          size === 'lg' || hasExplicitWidth ? 'w-10 h-10' : size === 'md' ? 'w-8 h-8' : 'w-6 h-6'
         )}
       />
       <p
         className={cn(
           'text-white/90 text-center font-medium leading-tight',
-          size === 'lg' || hasExplicitSize ? 'text-xs' : 'text-[10px]'
+          size === 'lg' || hasExplicitWidth ? 'text-xs' : 'text-[10px]'
         )}
         style={{
           display: '-webkit-box',

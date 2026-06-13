@@ -281,9 +281,7 @@ export function VirtualBookshelf({
                       >
                         <BookCover
                           book={book}
-                          fit="contain"
                           width={neighborCoverSize(book).width}
-                          height={neighborCoverSize(book).height}
                           className="rounded-md"
                         />
                       </motion.button>
@@ -331,9 +329,7 @@ export function VirtualBookshelf({
                       >
                         <BookCover
                           book={focusedBook}
-                          fit="contain"
                           width={focusedCoverSize?.width}
-                          height={focusedCoverSize?.height}
                           className="rounded-lg"
                         />
                       </button>
@@ -390,9 +386,7 @@ export function VirtualBookshelf({
                       >
                         <BookCover
                           book={book}
-                          fit="contain"
                           width={neighborCoverSize(book).width}
-                          height={neighborCoverSize(book).height}
                           className="rounded-md"
                         />
                       </motion.button>
