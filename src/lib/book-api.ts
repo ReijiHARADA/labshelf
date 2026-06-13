@@ -1,4 +1,5 @@
 import type { Book } from '@/types/book';
+import { fetchAmazonCoverImage } from '@/lib/amazon-cover';
 
 interface GoogleBooksVolume {
   id: string;
@@ -241,8 +242,9 @@ export async function fetchBookInfo(isbn: string): Promise<Partial<Book> | null>
   
   const openBDResult = await fetchBookInfoFromOpenBD(normalizedISBN);
   const googleResult = await fetchBookInfoFromGoogleBooks(normalizedISBN);
+  const amazonCover = await fetchAmazonCoverImage(normalizedISBN);
 
-  if (!openBDResult && !googleResult) {
+  if (!openBDResult && !googleResult && !amazonCover) {
     return null;
   }
 
@@ -257,7 +259,7 @@ export async function fetchBookInfo(isbn: string): Promise<Partial<Book> | null>
     publisher: primary.publisher || fallback.publisher || '',
     publishedYear: primary.publishedYear || fallback.publishedYear || new Date().getFullYear(),
     description: primary.description || fallback.description,
-    coverImageUrl: primary.coverImageUrl || fallback.coverImageUrl,
+    coverImageUrl: amazonCover || primary.coverImageUrl || fallback.coverImageUrl,
     tags: primary.tags || fallback.tags || [],
     dimensions: primary.dimensions || fallback.dimensions,
   };
