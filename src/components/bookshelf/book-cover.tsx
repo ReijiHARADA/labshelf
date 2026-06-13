@@ -1,47 +1,106 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Book } from '@/types/book';
 import { getBookSpineColor } from '@/lib/spine-colors';
+import {
+  cacheCoverAspectRatio,
+  getCoverAspectRatio,
+  normalizeCoverUrl,
+} from '@/lib/cover-aspect-ratio';
 
 interface BookCoverProps {
   book: Book;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  fit?: 'cover' | 'contain';
+  width?: number;
+  height?: number;
 }
 
 const sizeClasses = {
-  sm: 'w-16 h-24',
-  md: 'w-24 h-36',
-  lg: 'w-32 h-48',
+  sm: 'w-16',
+  md: 'w-24',
+  lg: 'w-32',
 };
 
 export function BookCover({
   book,
   size = 'md',
   className,
+  fit = 'contain',
+  width,
+  height,
 }: BookCoverProps) {
   const spineColor = getBookSpineColor(book);
   const [imageError, setImageError] = useState(false);
-  const coverSrc = book.coverImageUrl?.replace(/^http:\/\//, 'https://');
+  const coverSrc = normalizeCoverUrl(book.coverImageUrl);
+  const [aspectRatio, setAspectRatio] = useState(() => getCoverAspectRatio(book));
+  const hasExplicitSize = width != null && height != null;
+
+  useEffect(() => {
+    setAspectRatio(getCoverAspectRatio(book));
+    setImageError(false);
+  }, [book.id, book.coverImageUrl]);
+
+  const containerStyle = hasExplicitSize
+    ? { width: `${width}px`, height: `${height}px` }
+    : undefined;
+
+  const containerClassName = cn(
+    'relative overflow-hidden shadow-soft',
+    !hasExplicitSize && sizeClasses[size],
+    !hasExplicitSize && fit === 'contain' && 'h-auto',
+    className
+  );
+
+  const fallbackClassName = cn(
+    'relative overflow-hidden shadow-soft flex flex-col items-center justify-center p-3',
+    !hasExplicitSize && sizeClasses[size],
+    className
+  );
+
+  const fallbackStyle = hasExplicitSize
+    ? containerStyle
+    : {
+        aspectRatio: `${aspectRatio}`,
+        backgroundColor: spineColor,
+      };
+
+  const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = event.currentTarget;
+    if (img.naturalWidth <= 0 || img.naturalHeight <= 0 || !coverSrc) return;
+
+    const ratio = img.naturalWidth / img.naturalHeight;
+    cacheCoverAspectRatio(coverSrc, ratio);
+    if (!hasExplicitSize) {
+      setAspectRatio(ratio);
+    }
+  };
 
   if (coverSrc && !imageError) {
     return (
       <div
-        className={cn(
-          'relative overflow-hidden shadow-soft',
-          sizeClasses[size],
-          className
-        )}
+        className={containerClassName}
+        style={{
+          ...containerStyle,
+          ...(!hasExplicitSize
+            ? { aspectRatio: `${aspectRatio}`, backgroundColor: spineColor }
+            : { backgroundColor: spineColor }),
+        }}
       >
         <img
           src={coverSrc}
           alt={book.title}
           loading="lazy"
           decoding="async"
-          className="absolute inset-0 h-full w-full object-cover"
+          className={cn(
+            'block h-full w-full',
+            fit === 'contain' ? 'object-contain' : 'object-cover'
+          )}
+          onLoad={handleImageLoad}
           onError={() => setImageError(true)}
         />
         {book.borrowedBy && (
@@ -54,26 +113,17 @@ export function BookCover({
   }
 
   return (
-    <div
-      className={cn(
-        'relative overflow-hidden shadow-soft flex flex-col items-center justify-center p-3',
-        sizeClasses[size],
-        className
-      )}
-      style={{
-        backgroundColor: spineColor,
-      }}
-    >
+    <div className={fallbackClassName} style={fallbackStyle}>
       <BookOpen
         className={cn(
           'text-white/30 mb-2',
-          size === 'lg' ? 'w-10 h-10' : size === 'md' ? 'w-8 h-8' : 'w-6 h-6'
+          size === 'lg' || hasExplicitSize ? 'w-10 h-10' : size === 'md' ? 'w-8 h-8' : 'w-6 h-6'
         )}
       />
       <p
         className={cn(
           'text-white/90 text-center font-medium leading-tight',
-          size === 'lg' ? 'text-xs' : 'text-[10px]'
+          size === 'lg' || hasExplicitSize ? 'text-xs' : 'text-[10px]'
         )}
         style={{
           display: '-webkit-box',

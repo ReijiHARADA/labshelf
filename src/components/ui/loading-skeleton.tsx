@@ -37,18 +37,27 @@ export function BookshelfSkeleton() {
 
 export function BookGridSkeleton({ count = 12 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-      {Array.from({ length: count }).map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.03 }}
-        >
-          <Skeleton className="aspect-[2/3] rounded-md mb-2" />
-          <Skeleton className="h-4 w-full mb-1" />
-          <Skeleton className="h-3 w-2/3" />
-        </motion.div>
+    <div className="space-y-3">
+      {[0, 1, 2].map((row) => (
+        <div key={row} className="flex items-end gap-3">
+          {Array.from({ length: Math.ceil(count / 3) }).map((_, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: (row * 4 + i) * 0.03 }}
+              className="shrink-0"
+              style={{ width: `${90 + (i % 3) * 24}px` }}
+            >
+              <Skeleton
+                className="rounded-md mb-2"
+                style={{ height: `${150 + (i % 2) * 24}px` }}
+              />
+              <Skeleton className="h-4 w-full mb-1" />
+              <Skeleton className="h-3 w-2/3" />
+            </motion.div>
+          ))}
+        </div>
       ))}
     </div>
   );

@@ -67,7 +67,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               <BookCover
                 book={book}
                 size="lg"
-                className="w-full max-w-[260px] mx-auto lg:mx-0 h-auto aspect-[2/3]"
+                className="w-full max-w-[260px] mx-auto lg:mx-0"
               />
 
               {/* Badges */}

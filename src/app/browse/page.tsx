@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { VirtualBookshelf, BookCover } from '@/components/bookshelf';
+import { VirtualBookshelf, BookCover, JustifiedBookGrid } from '@/components/bookshelf';
 import { BookDetailDrawer } from '@/components/bookshelf/book-detail-drawer';
 import { Card, CardContent } from '@/components/ui/card';
 import { CategoryManageDialog } from '@/components/categories/category-manage-dialog';
@@ -530,28 +530,11 @@ export default function BrowsePage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
             >
-              {filteredBooks.map((book, index) => (
-                <motion.div
-                  key={book.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.02 }}
-                  className="cursor-pointer group"
-                  onClick={() => setSelectedBook(book)}
-                >
-                  <div className="aspect-[2/3] mb-2">
-                    <BookCover book={book} size="lg" className="w-full h-full" />
-                  </div>
-                  <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
-                    {book.title}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                    {book.author}
-                  </p>
-                </motion.div>
-              ))}
+              <JustifiedBookGrid
+                books={filteredBooks}
+                onBookClick={setSelectedBook}
+              />
             </motion.div>
           )}
         </AnimatePresence>
