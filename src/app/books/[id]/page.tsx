@@ -15,10 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookCover } from '@/components/bookshelf';
-import { BookCategoryEditor } from '@/components/books/book-category-editor';
-import { BookCoverUploader } from '@/components/books/book-cover-uploader';
-import { BookLoanEditor } from '@/components/books/book-loan-editor';
-import { BookSizeEditor } from '@/components/books/book-size-editor';
+import { BookSettingsDialog } from '@/components/books/book-settings-dialog';
 import { getBookById, getRelatedBooks } from '@/lib/books-store';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 
@@ -93,7 +90,8 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             {/* Info */}
             <section className="space-y-5 pt-1">
                 {/* Title */}
-                <div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
                   <h1 className="text-2xl sm:text-3xl font-bold">{book.title}</h1>
                   <div className="mt-2">
                     {book.borrowedBy ? (
@@ -112,6 +110,16 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                     </p>
                   )}
                   <p className="text-lg mt-3">{book.author}</p>
+                  </div>
+                  <BookSettingsDialog
+                    bookId={book.id}
+                    category={book.category}
+                    dimensions={book.dimensions}
+                    borrowedBy={book.borrowedBy}
+                    borrowedAt={book.borrowedAt}
+                    dueDate={book.dueDate}
+                    loanMemo={book.loanMemo}
+                  />
                 </div>
 
                 <Separator />
@@ -210,46 +218,6 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   </>
                 )}
             </section>
-
-            {/* Loan */}
-            <Card className="border-dashed">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">貸出</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  誰が借りているかの管理と、貸出・返却の操作を行えます。
-                </p>
-                <BookLoanEditor
-                  bookId={book.id}
-                  borrowedBy={book.borrowedBy}
-                  borrowedAt={book.borrowedAt}
-                  dueDate={book.dueDate}
-                  loanMemo={book.loanMemo}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Edit */}
-            <Card className="border-dashed">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">修正</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    カテゴリ設定と表紙画像の更新を行えます。
-                  </p>
-                  <BookCategoryEditor bookId={book.id} initialCategory={book.category} />
-                </div>
-                <Separator />
-                <BookSizeEditor bookId={book.id} initialDimensions={book.dimensions} />
-                <Separator />
-                <div className="max-w-sm">
-                  <BookCoverUploader bookId={book.id} />
-                </div>
-              </CardContent>
-            </Card>
 
             {/* TOC */}
             {book.toc && (
