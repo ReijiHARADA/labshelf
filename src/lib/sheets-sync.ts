@@ -15,6 +15,7 @@ import {
   loadCategoryColorsFromDatabase,
 } from './books-db';
 import { setCategoryColorOverrides } from './spine-colors';
+import { mergeSyncedBooksWithExisting } from './sync-merge';
 import type { BookDimensions } from '@/types/book';
 
 interface SheetRow {
@@ -87,6 +88,18 @@ function parseFloatNumber(value: string | undefined): number | undefined {
   if (!value) return undefined;
   const n = Number.parseFloat(value);
   return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+function hasSheetCoverUrl(row: SheetRow): boolean {
+  return Boolean(
+    pickRowValue(row, [
+      'coverImageUrl',
+      'coverimageurl',
+      'cover_image_url',
+      'cover',
+      '表紙',
+    ])?.trim()
+  );
 }
 
 function parseRowDimensions(row: SheetRow): BookDimensions | undefined {
@@ -327,6 +340,7 @@ export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
     console.log(`${rows.length}行のデータを取得しました`);
 
     const validBooks: Book[] = [];
+    const sheetCoverByBookId = new Map<string, boolean>();
     
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -342,6 +356,7 @@ export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
         const book = await enrichBookWithAPI(row, i);
         if (book) {
           validBooks.push(book);
+          sheetCoverByBookId.set(book.id, hasSheetCoverUrl(row));
           console.log(`Row ${i}: Successfully processed - ${book.title}`);
         }
       } catch (error) {
@@ -359,15 +374,29 @@ export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
       throw new Error('有効な本のデータがありません。ISBN列にデータがあるか確認してください。');
     }
 
-    await upsertBooksToDatabase(validBooks);
-    updateBooks(validBooks);
+    let existingBooks: Book[] = [];
+    try {
+      existingBooks = await loadBooksFromDatabase();
+    } catch (error) {
+      console.error('Existing books load error before merge:', error);
+      existingBooks = getBooks();
+    }
+
+    const mergedBooks = mergeSyncedBooksWithExisting(
+      validBooks,
+      existingBooks,
+      sheetCoverByBookId
+    );
+
+    await upsertBooksToDatabase(mergedBooks);
+    updateBooks(mergedBooks);
 
     const duration = Date.now() - startTime;
     const log: SyncLog = {
       id: Date.now().toString(),
       timestamp: new Date().toISOString(),
       status: 'success',
-      bookCount: validBooks.length,
+      bookCount: mergedBooks.length,
       duration,
     };
     addSyncLog(log);
@@ -375,14 +404,14 @@ export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
     updateSyncStatus({
       lastSyncAt: new Date().toISOString(),
       status: 'success',
-      bookCount: validBooks.length,
+      bookCount: mergedBooks.length,
       syncDuration: duration,
       errorMessage: errors.length > 0 ? `${errors.length}件の警告があります` : undefined,
     });
 
     return {
       success: true,
-      bookCount: validBooks.length,
+      bookCount: mergedBooks.length,
       errors,
       duration,
     };
