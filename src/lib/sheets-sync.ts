@@ -7,6 +7,7 @@ import {
   setCustomCategories,
 } from './books-store';
 import { fetchBookInfo } from './book-api';
+import { applyAutoClassification } from './book-classifier';
 import {
   loadBooksFromDatabase,
   upsertBooksToDatabase,
@@ -172,8 +173,8 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
   }
   
   const id = row.id?.trim() || normalizedISBN || `book-${index}`;
-  
-  return {
+
+  const book: Book = {
     id,
     isbn: normalizedISBN,
     title,
@@ -197,6 +198,8 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
     memo: pickRowValue(row, ['memo', 'メモ'])?.trim() || undefined,
     dimensions: rowDimensions ?? apiDimensions,
   };
+
+  return applyAutoClassification(book);
 }
 
 export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
@@ -467,7 +470,7 @@ export async function syncFromISBNList(isbns: string[]): Promise<{
     try {
       const apiData = await fetchBookInfo(isbn);
       if (apiData && apiData.title) {
-        books.push({
+        const book: Book = {
           id: normalizeISBN(isbn),
           isbn: normalizeISBN(isbn),
           title: apiData.title,
@@ -478,6 +481,7 @@ export async function syncFromISBNList(isbns: string[]): Promise<{
           category: '未分類',
           tags: apiData.tags || [],
           description: apiData.description,
+          toc: apiData.toc,
           coverImageUrl: apiData.coverImageUrl,
           dimensions: apiData.dimensions,
           recommended: false,
@@ -485,7 +489,8 @@ export async function syncFromISBNList(isbns: string[]): Promise<{
           popularityScore: 50,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        });
+        };
+        books.push(applyAutoClassification(book));
       } else {
         errors.push(`ISBN ${isbn}: 情報を取得できませんでした`);
       }

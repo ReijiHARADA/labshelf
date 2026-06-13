@@ -63,16 +63,9 @@ export interface SyncLog {
   duration: number;
 }
 
-export type BookCategory =
-  | 'プログラミング'
-  | '機械学習'
-  | 'データサイエンス'
-  | '数学・統計'
-  | 'デザイン・UX'
-  | 'ビジネス'
-  | '研究手法'
-  | '論文執筆'
-  | '未分類';
+import type { LabBookCategory } from '@/lib/book-classifier';
+
+export type BookCategory = LabBookCategory | '未分類' | 'その他';
 
 export type SortOption = 'latest' | 'title' | 'author' | 'popular' | 'year';
 

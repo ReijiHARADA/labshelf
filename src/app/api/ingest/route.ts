@@ -4,6 +4,7 @@ import { fetchBookInfo } from '@/lib/book-api';
 import { normalizeToIsbn13 } from '@/lib/isbn';
 import { findExistingIsbns, upsertBooksToDatabase } from '@/lib/books-db';
 import { appendItemsToSheet } from '@/lib/sheets-append';
+import { applyAutoClassification } from '@/lib/book-classifier';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -20,7 +21,7 @@ function toBookFromApi(isbn13: string, apiData: Partial<Book> | null): Book | nu
   if (!apiData?.title) return null;
 
   const now = new Date().toISOString();
-  return {
+  return applyAutoClassification({
     id: isbn13,
     isbn: isbn13,
     title: apiData.title,
@@ -39,7 +40,7 @@ function toBookFromApi(isbn13: string, apiData: Partial<Book> | null): Book | nu
     createdAt: now,
     updatedAt: now,
     memo: undefined,
-  };
+  });
 }
 
 export async function POST(request: NextRequest) {
