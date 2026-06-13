@@ -17,10 +17,12 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { motion } from 'framer-motion';
 import { BookSpine } from './book-spine';
+import { computeRowGap } from '@/lib/shelf-layout';
 import type { Book } from '@/types/book';
 
 interface ShelfRowProps {
   books: Book[];
+  shelfInnerWidth: number;
   onBookClick?: (book: Book) => void;
   rowIndex?: number;
   editMode?: boolean;
@@ -30,6 +32,7 @@ interface ShelfRowProps {
 
 export function ShelfRow({
   books,
+  shelfInnerWidth,
   onBookClick,
   rowIndex = 0,
   editMode = false,
@@ -42,6 +45,7 @@ export function ShelfRow({
     })
   );
   const orderedIds = books.map((b) => b.id);
+  const rowGap = computeRowGap(books, shelfInnerWidth);
 
   const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -66,7 +70,10 @@ export function ShelfRow({
         onDragEnd={onDragEnd}
       >
         <SortableContext items={orderedIds} strategy={horizontalListSortingStrategy}>
-          <div className="flex items-end gap-[5px] px-4 pb-0 min-h-[200px]">
+          <div
+            className="flex items-end px-4 pb-0 min-h-[200px]"
+            style={{ gap: `${rowGap}px` }}
+          >
             {books.map((book, index) => (
               <SortableBookItem
                 key={book.id}

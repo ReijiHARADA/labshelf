@@ -104,7 +104,6 @@ export function BookshelfSection({
           <VirtualBookshelf
             books={displayBooks}
             maxRows={5}
-            maxBooksPerRow={18}
           />
         </motion.div>
 

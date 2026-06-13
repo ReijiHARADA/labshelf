@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { ShelfRow } from './shelf-row';
@@ -8,22 +8,22 @@ import { BookCover } from './book-cover';
 import { Button } from '@/components/ui/button';
 import { X, Pencil, Check } from 'lucide-react';
 import type { Book } from '@/types/book';
-import { getSpineWidth } from '@/lib/spine-colors';
+import { splitBooksIntoShelves } from '@/lib/shelf-layout';
 
 interface VirtualBookshelfProps {
   books: Book[];
-  maxBooksPerRow?: number;
   maxRows?: number;
   title?: string;
 }
 
 export function VirtualBookshelf({
   books,
-  maxBooksPerRow = 12,
   maxRows = 3,
   title,
 }: VirtualBookshelfProps) {
   const router = useRouter();
+  const shelfFrameRef = useRef<HTMLDivElement>(null);
+  const [shelfInnerWidth, setShelfInnerWidth] = useState(1280);
   const [focusedBookId, setFocusedBookId] = useState<string | null>(null);
   const [motionDirection, setMotionDirection] = useState<1 | -1>(1);
   const [viewportWidth, setViewportWidth] = useState(1280);
@@ -59,33 +59,24 @@ export function VirtualBookshelf({
     setOrderedBooks(seeded);
   }, [books]);
 
-  const shelves = useMemo(() => {
-    const rows: Book[][] = [];
-    let currentRow: Book[] = [];
-    let currentWidth = 0;
-    const maxWidth = maxBooksPerRow * 35;
+  useEffect(() => {
+    const frame = shelfFrameRef.current;
+    if (!frame) return;
 
-    for (const book of orderedBooks) {
-      const bookWidth = getSpineWidth(book);
-      
-      if (currentWidth + bookWidth > maxWidth && currentRow.length > 0) {
-        rows.push(currentRow);
-        currentRow = [];
-        currentWidth = 0;
-        
-        if (rows.length >= maxRows) break;
-      }
-      
-      currentRow.push(book);
-      currentWidth += bookWidth + 2;
-    }
+    const updateWidth = () => {
+      setShelfInnerWidth(frame.clientWidth);
+    };
 
-    if (currentRow.length > 0 && rows.length < maxRows) {
-      rows.push(currentRow);
-    }
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
 
-    return rows;
-  }, [orderedBooks, maxBooksPerRow, maxRows]);
+  const shelves = useMemo(
+    () => splitBooksIntoShelves(orderedBooks, shelfInnerWidth, maxRows),
+    [orderedBooks, shelfInnerWidth, maxRows]
+  );
 
   const shelfBooks = useMemo(() => shelves.flat(), [shelves]);
   const focusedIndex = useMemo(
@@ -134,22 +125,7 @@ export function VirtualBookshelf({
   const reorderRow = (rowIndex: number, orderedIds: string[]) => {
     if (!editMode || orderedIds.length === 0) return;
     setOrderedBooks((prev) => {
-      const rows: Book[][] = [];
-      let currentRow: Book[] = [];
-      let currentWidth = 0;
-      const maxWidth = maxBooksPerRow * 35;
-      for (const book of prev) {
-        const w = getSpineWidth(book);
-        if (currentWidth + w > maxWidth && currentRow.length > 0) {
-          rows.push(currentRow);
-          currentRow = [];
-          currentWidth = 0;
-          if (rows.length >= maxRows) break;
-        }
-        currentRow.push(book);
-        currentWidth += w + 2;
-      }
-      if (currentRow.length > 0 && rows.length < maxRows) rows.push(currentRow);
+      const rows = splitBooksIntoShelves(prev, shelfInnerWidth, maxRows);
       if (!rows[rowIndex]) return prev;
 
       const idToBook = new Map(prev.map((b) => [b.id, b] as const));
@@ -196,6 +172,7 @@ export function VirtualBookshelf({
 
         {/* Bookshelf frame */}
         <div
+          ref={shelfFrameRef}
           className="relative rounded-lg overflow-hidden"
           style={{
             background: 'linear-gradient(180deg, #f8f6f3 0%, #f0ece6 100%)',
@@ -220,6 +197,7 @@ export function VirtualBookshelf({
                 <ShelfRow
                   key={`shelf-${rowIndex}`}
                   books={shelfBooks}
+                  shelfInnerWidth={shelfInnerWidth}
                   onBookClick={(book) => moveFocus(book.id)}
                   rowIndex={rowIndex}
                   editMode={editMode}
