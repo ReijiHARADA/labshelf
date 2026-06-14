@@ -21,26 +21,32 @@ function toBookFromApi(isbn13: string, apiData: Partial<Book> | null): Book | nu
   if (!apiData?.title) return null;
 
   const now = new Date().toISOString();
-  return applyAutoClassification({
-    id: isbn13,
-    isbn: isbn13,
-    title: apiData.title,
-    subtitle: apiData.subtitle,
-    author: apiData.author || '不明',
-    publisher: apiData.publisher || '',
-    publishedYear: apiData.publishedYear || new Date().getFullYear(),
-    category: '未分類',
-    tags: apiData.tags || [],
-    description: apiData.description,
-    toc: apiData.toc,
-    coverImageUrl: apiData.coverImageUrl,
-    recommended: false,
-    latestFlag: true,
-    popularityScore: 50,
-    createdAt: now,
-    updatedAt: now,
-    memo: undefined,
-  });
+  return applyAutoClassification(
+    {
+      id: isbn13,
+      isbn: isbn13,
+      title: apiData.title,
+      subtitle: apiData.subtitle,
+      author: apiData.author || '不明',
+      publisher: apiData.publisher || '',
+      publishedYear: apiData.publishedYear || new Date().getFullYear(),
+      category: '未分類',
+      tags: [],
+      description: apiData.description,
+      toc: apiData.toc,
+      coverImageUrl: apiData.coverImageUrl,
+      recommended: false,
+      latestFlag: true,
+      popularityScore: 50,
+      createdAt: now,
+      updatedAt: now,
+      memo: undefined,
+    },
+    {
+      preserveManualCategory: false,
+      clearTags: true,
+    }
+  );
 }
 
 export async function POST(request: NextRequest) {

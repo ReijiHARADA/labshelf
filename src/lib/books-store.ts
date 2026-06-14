@@ -237,21 +237,24 @@ export function getPopularBooks(limit = 10): Book[] {
 }
 
 export function getRelatedBooks(book: Book, limit = 6): Book[] {
-  const related = cachedBooks.filter(
-    (b) =>
-      b.id !== book.id &&
-      (b.category === book.category ||
-        b.tags.some((tag) => book.tags.includes(tag)))
-  );
+  const bookTags = book.tags ?? [];
+  const hasTags = bookTags.length > 0;
+
+  const related = cachedBooks.filter((b) => {
+    if (b.id === book.id) return false;
+    if (b.category === book.category) return true;
+    if (!hasTags || (b.tags?.length ?? 0) === 0) return false;
+    return b.tags.some((tag) => bookTags.includes(tag));
+  });
 
   return related
     .sort((a, b) => {
       const aScore =
-        (a.category === book.category ? 2 : 0) +
-        a.tags.filter((tag) => book.tags.includes(tag)).length;
+        (a.category === book.category ? 3 : 0) +
+        (hasTags ? a.tags.filter((tag) => bookTags.includes(tag)).length : 0);
       const bScore =
-        (b.category === book.category ? 2 : 0) +
-        b.tags.filter((tag) => book.tags.includes(tag)).length;
+        (b.category === book.category ? 3 : 0) +
+        (hasTags ? b.tags.filter((tag) => bookTags.includes(tag)).length : 0);
       return bScore - aScore;
     })
     .slice(0, limit);

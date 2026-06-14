@@ -224,7 +224,10 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
     dimensions: rowDimensions ?? apiDimensions,
   };
 
-  return applyAutoClassification(book);
+  return applyAutoClassification(book, {
+    preserveManualCategory: true,
+    clearTags: false,
+  });
 }
 
 export async function syncFromGoogleSheets(sheetIdParam?: string): Promise<{
@@ -520,7 +523,7 @@ export async function syncFromISBNList(isbns: string[]): Promise<{
           publisher: apiData.publisher || '',
           publishedYear: apiData.publishedYear || new Date().getFullYear(),
           category: '未分類',
-          tags: apiData.tags || [],
+          tags: [],
           description: apiData.description,
           toc: apiData.toc,
           coverImageUrl: apiData.coverImageUrl,
@@ -531,7 +534,12 @@ export async function syncFromISBNList(isbns: string[]): Promise<{
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-        books.push(applyAutoClassification(book));
+        books.push(
+          applyAutoClassification(book, {
+            preserveManualCategory: false,
+            clearTags: true,
+          })
+        );
       } else {
         errors.push(`ISBN ${isbn}: 情報を取得できませんでした`);
       }
