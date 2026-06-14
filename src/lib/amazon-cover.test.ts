@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildAmazonProductImageUrl,
+  extractAllCoverCandidatesFromProductHtml,
   extractCoverFromProductHtml,
   extractCoverFromSearchHtml,
   extractFirstAsinFromSearchHtml,
@@ -18,6 +19,7 @@ describe('amazon-cover', () => {
 
   it('商品ページ HTML から hiRes 画像を抽出する', () => {
     const html = `
+      <meta property="og:image" content="https://m.media-amazon.com/images/I/71abc._AC_SL500_.jpg" />
       <script>
         "colorImages": {
           "initial": [{
@@ -30,6 +32,15 @@ describe('amazon-cover', () => {
       extractCoverFromProductHtml(html),
       'https://m.media-amazon.com/images/I/71abc._AC_SL1500_.jpg'
     );
+  });
+
+  it('hiRes を og:image より優先する', () => {
+    const html = `
+      <meta property="og:image" content="https://m.media-amazon.com/images/I/lowres._AC_SL500_.jpg" />
+      <script>"hiRes":"https://m.media-amazon.com/images/I/hires._AC_SL1200_.jpg"</script>
+    `;
+    const candidates = extractAllCoverCandidatesFromProductHtml(html);
+    assert.equal(candidates[0], 'https://m.media-amazon.com/images/I/hires._AC_SL1500_.jpg');
   });
 
   it('検索結果 HTML から ASIN を抽出する', () => {

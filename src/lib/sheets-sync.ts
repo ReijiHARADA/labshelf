@@ -7,7 +7,6 @@ import {
   setCustomCategories,
 } from './books-store';
 import { fetchBookInfo } from './book-api';
-import { fetchAmazonCoverImage } from './amazon-cover';
 import { applyAutoClassification } from './book-classifier';
 import {
   loadBooksFromDatabase,
@@ -157,9 +156,11 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
   let subtitle = pickRowValue(row, ['subtitle', 'サブタイトル'])?.trim();
   const rowDimensions = parseRowDimensions(row);
   let apiDimensions: BookDimensions | undefined;
+  let apiCover: string | undefined;
   
   const needsCoreMetadata = !title || !author || !coverImageUrl || !description || !publisher;
   const needsDimensions = !rowDimensions;
+  const sheetHasCover = hasSheetCoverUrl(row);
 
   if (needsCoreMetadata || needsDimensions) {
     console.log(`行${index + 2}: ISBN ${normalizedISBN} の情報をAPIから取得中...`);
@@ -174,7 +175,10 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
       publisher = publisher || apiData.publisher || '';
       publishedYear = publishedYear || apiData.publishedYear || new Date().getFullYear();
       description = description || apiData.description;
-      coverImageUrl = coverImageUrl || apiData.coverImageUrl;
+      apiCover = apiData.coverImageUrl;
+      if (!sheetHasCover) {
+        coverImageUrl = coverImageUrl || apiCover;
+      }
       subtitle = subtitle || apiData.subtitle;
       apiDimensions = apiData.dimensions;
       
@@ -182,14 +186,6 @@ async function enrichBookWithAPI(row: SheetRow, index: number): Promise<Book | n
     } else {
       console.log(`  -> API取得失敗`);
     }
-  }
-
-  if (!coverImageUrl && title) {
-    const amazonCover = await fetchAmazonCoverImage(normalizedISBN, {
-      title,
-      author: author || undefined,
-    });
-    coverImageUrl = amazonCover || coverImageUrl;
   }
   
   if (!title) {

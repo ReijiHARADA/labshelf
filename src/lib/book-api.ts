@@ -271,9 +271,11 @@ export async function fetchBookInfo(
     ndlResult?.author ||
     undefined;
 
+  const apiCover = openBDResult?.coverImageUrl || googleResult?.coverImageUrl;
   const amazonCover = await fetchAmazonCoverImage(normalizedISBN, {
     title: mergedTitle,
     author: mergedAuthor,
+    currentCoverUrl: apiCover,
   });
 
   if (!openBDResult && !googleResult && !ndlResult && !amazonCover) {
@@ -291,7 +293,8 @@ export async function fetchBookInfo(
     publisher: primary.publisher || fallback.publisher || '',
     publishedYear: primary.publishedYear || fallback.publishedYear || new Date().getFullYear(),
     description: primary.description || fallback.description,
-    coverImageUrl: amazonCover || primary.coverImageUrl || fallback.coverImageUrl,
+    // 日本語書籍は OpenBD/Google の表紙が低解像度なため Amazon を優先。未取得時のみ API 表紙を使う。
+    coverImageUrl: amazonCover || apiCover || undefined,
     tags: primary.tags || fallback.tags || [],
     dimensions: primary.dimensions || fallback.dimensions,
   };
