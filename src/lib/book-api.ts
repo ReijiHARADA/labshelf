@@ -1,5 +1,6 @@
 import type { Book } from '@/types/book';
-import { fetchAmazonCoverImage } from '@/lib/amazon-cover';
+import { fetchAmazonCoverImage, isbn13ToIsbn10 } from '@/lib/amazon-cover';
+import { fetchBookInfoFromNDL } from '@/lib/ndl-api';
 
 interface GoogleBooksVolume {
   id: string;
@@ -243,25 +244,44 @@ export async function fetchBookInfo(
     return null;
   }
   
-  const openBDResult = await fetchBookInfoFromOpenBD(normalizedISBN);
+  let openBDResult = await fetchBookInfoFromOpenBD(normalizedISBN);
+  if (!openBDResult) {
+    const isbn10 = isbn13ToIsbn10(normalizedISBN);
+    if (isbn10) {
+      openBDResult = await fetchBookInfoFromOpenBD(isbn10);
+    }
+  }
+
   const googleResult = await fetchBookInfoFromGoogleBooks(normalizedISBN);
+  let ndlResult: Partial<Book> | null = null;
+  if (!openBDResult?.title && !googleResult?.title) {
+    ndlResult = await fetchBookInfoFromNDL(normalizedISBN);
+  }
 
   const mergedTitle =
-    hints.title?.trim() || openBDResult?.title || googleResult?.title || undefined;
+    hints.title?.trim() ||
+    openBDResult?.title ||
+    googleResult?.title ||
+    ndlResult?.title ||
+    undefined;
   const mergedAuthor =
-    hints.author?.trim() || openBDResult?.author || googleResult?.author || undefined;
+    hints.author?.trim() ||
+    openBDResult?.author ||
+    googleResult?.author ||
+    ndlResult?.author ||
+    undefined;
 
   const amazonCover = await fetchAmazonCoverImage(normalizedISBN, {
     title: mergedTitle,
     author: mergedAuthor,
   });
 
-  if (!openBDResult && !googleResult && !amazonCover) {
+  if (!openBDResult && !googleResult && !ndlResult && !amazonCover) {
     return null;
   }
 
-  const primary = openBDResult ?? googleResult ?? {};
-  const fallback = googleResult ?? openBDResult ?? {};
+  const primary = openBDResult ?? googleResult ?? ndlResult ?? {};
+  const fallback = googleResult ?? openBDResult ?? ndlResult ?? {};
 
   return {
     isbn: normalizedISBN,
