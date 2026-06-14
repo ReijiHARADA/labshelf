@@ -65,7 +65,7 @@ export interface SyncLog {
 
 import type { LabBookCategory } from '@/lib/book-classifier';
 
-export type BookCategory = LabBookCategory | '未分類' | 'その他';
+export type BookCategory = LabBookCategory | '未分類';
 
 export type SortOption = 'latest' | 'title' | 'author' | 'popular' | 'year';
 

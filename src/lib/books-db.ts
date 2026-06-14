@@ -498,3 +498,29 @@ export async function deleteCategoryFromDatabase(name: string): Promise<void> {
     .eq('name', name.trim());
   if (error) throw new Error(`カテゴリ削除に失敗しました: ${error.message}`);
 }
+
+export async function mergeCategoryInDatabase(
+  fromCategory: string,
+  toCategory: string
+): Promise<number> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return 0;
+
+  const from = fromCategory.trim();
+  const to = toCategory.trim();
+  if (!from || !to || from === to) return 0;
+
+  const { count, error: countError } = await supabase
+    .from('books')
+    .select('*', { count: 'exact', head: true })
+    .eq('category', from);
+  if (countError) {
+    throw new Error(`カテゴリ統合の件数取得に失敗しました: ${countError.message}`);
+  }
+
+  await bulkUpdateBookCategoryInDatabase(from, to);
+  await addCategoryToDatabase(to, null);
+  await deleteCategoryFromDatabase(from);
+
+  return count ?? 0;
+}

@@ -29,7 +29,8 @@ const categoryIcons: Record<string, React.ElementType> = {
   '研究手法': FlaskConical,
   '論文執筆': FileText,
   未分類: MoreHorizontal,
-  その他: MoreHorizontal,
+  'その他・未分類': MoreHorizontal,
+  '色彩・配色': Palette,
 };
 
 export default async function CategoriesPage() {

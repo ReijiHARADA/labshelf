@@ -45,6 +45,7 @@ const DEFAULT_CATEGORY_COLOR: CategoryColor = {
 const LEGACY_CATEGORY_COLORS: Record<string, CategoryColor> = {
   未分類: LAB_CATEGORY_COLORS['その他・未分類']!,
   その他: LAB_CATEGORY_COLORS['その他・未分類']!,
+  色彩: LAB_CATEGORY_COLORS['色彩・配色']!,
   デザイン: LAB_CATEGORY_COLORS['グラフィックデザイン']!,
   ビジネス: LAB_CATEGORY_COLORS['マーケティング・ビジネス']!,
   技術: LAB_CATEGORY_COLORS['プログラミング・開発']!,

@@ -579,7 +579,13 @@ function normalizeText(value: string | undefined): string {
 
 export function shouldAutoClassifyCategory(category?: string): boolean {
   const current = category?.trim();
-  return !current || current === '未分類' || current === 'その他・未分類';
+  return (
+    !current ||
+    current === '未分類' ||
+    current === 'その他・未分類' ||
+    current === 'その他' ||
+    current === '色彩'
+  );
 }
 
 type RuleScore = {
@@ -658,9 +664,8 @@ export function applyAutoClassification<
   const shouldPreserveCategory =
     options.preserveManualCategory !== false &&
     !options.forceCategory &&
-    currentCategory &&
-    currentCategory !== '未分類' &&
-    currentCategory !== 'その他・未分類';
+    Boolean(currentCategory) &&
+    !shouldAutoClassifyCategory(currentCategory);
 
   return {
     ...book,

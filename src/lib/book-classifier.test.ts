@@ -190,6 +190,8 @@ describe('book-classifier', () => {
     assert.equal(shouldAutoClassifyCategory(''), true);
     assert.equal(shouldAutoClassifyCategory('未分類'), true);
     assert.equal(shouldAutoClassifyCategory('その他・未分類'), true);
+    assert.equal(shouldAutoClassifyCategory('その他'), true);
+    assert.equal(shouldAutoClassifyCategory('色彩'), true);
     assert.equal(shouldAutoClassifyCategory('UI・UX'), false);
   });
 });

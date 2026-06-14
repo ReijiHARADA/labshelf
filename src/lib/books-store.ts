@@ -181,6 +181,32 @@ export function renameCategoryInStore(
   return { success: true, message: 'カテゴリ名を変更しました', changedBooks };
 }
 
+export function mergeCategoryInStore(
+  fromName: string,
+  toName: string
+): { success: boolean; message: string; movedBooks: number } {
+  const from = fromName.trim();
+  const to = toName.trim();
+  if (!from || !to) {
+    return { success: false, message: 'カテゴリ名が不正です', movedBooks: 0 };
+  }
+  if (from === to) {
+    return { success: false, message: '同じカテゴリには統合できません', movedBooks: 0 };
+  }
+
+  let movedBooks = 0;
+  cachedBooks = cachedBooks.map((book) => {
+    if (book.category !== from) return book;
+    movedBooks += 1;
+    return { ...book, category: to, updatedAt: new Date().toISOString() };
+  });
+
+  customCategories = customCategories.filter((c) => c !== from);
+  customCategories = [...new Set(customCategories)];
+
+  return { success: true, message: 'カテゴリを統合しました', movedBooks };
+}
+
 export function deleteCategoryInStore(
   name: string,
   fallbackCategory = '未分類'
