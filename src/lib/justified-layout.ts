@@ -12,6 +12,7 @@ export interface JustifiedLayoutBox<T> {
 export interface JustifiedLayoutRow<T> {
   boxes: JustifiedLayoutBox<T>[];
   height: number;
+  isLastRow?: boolean;
 }
 
 export interface JustifiedLayoutOptions {
@@ -57,8 +58,8 @@ export function buildJustifiedRows<T>(
     const gaps = Math.max(0, rowItems.length - 1) * gap;
 
     let height: number;
-    if (isLastRow && rowItems.length <= 3) {
-      // 最終行は伸ばしすぎず、左寄せで自然なサイズに
+    if (isLastRow) {
+      // 最終行は他行と同じ高さに揃え、左寄せで自然幅にする
       height = targetRowHeight;
     } else {
       height = (containerWidth - gaps) / aspectSum;
@@ -67,6 +68,7 @@ export function buildJustifiedRows<T>(
 
     rows.push({
       height,
+      isLastRow,
       boxes: rowItems.map((entry) => ({
         item: entry.item,
         width: entry.aspectRatio * height,

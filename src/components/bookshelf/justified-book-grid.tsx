@@ -50,7 +50,10 @@ export function JustifiedBookGrid({
   return (
     <div ref={containerRef} className="space-y-3">
       {rows.map((row, rowIndex) => (
-        <div key={`row-${rowIndex}`} className="flex items-start gap-3">
+        <div
+          key={`row-${rowIndex}`}
+          className={`flex items-start gap-3 ${row.isLastRow ? 'justify-start' : ''}`}
+        >
           {row.boxes.map(({ item: book, width, height }, index) => (
             <motion.button
               key={book.id}
