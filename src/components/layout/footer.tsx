@@ -47,7 +47,7 @@ export function Footer() {
   return (
     <footer className="border-t border-border/50 bg-muted/30">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 xl:grid-cols-[1.15fr_0.75fr_0.6fr_2.5fr] xl:gap-10">
+        <div className="flex flex-col gap-8">
           {/* Brand */}
           <div>
             <Link href="/" className="flex items-center gap-2.5">
@@ -108,7 +108,7 @@ export function Footer() {
           </div>
 
           {/* Categories */}
-          <div className="sm:col-span-2 xl:col-span-1 min-w-0">
+          <div>
             <div className="flex items-baseline justify-between gap-4 mb-3">
               <h3 className="text-sm font-semibold">カテゴリ</h3>
               <Link
@@ -118,7 +118,7 @@ export function Footer() {
                 すべて見る
               </Link>
             </div>
-            <ul className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-x-3 gap-y-1.5">
+            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-2">
               {footerCategories.map((category) => (
                 <li key={category}>
                   <Link
