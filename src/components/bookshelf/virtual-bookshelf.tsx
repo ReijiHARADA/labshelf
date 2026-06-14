@@ -202,6 +202,7 @@ export function VirtualBookshelf({
                   shelfInnerWidth={shelfInnerWidth}
                   onBookClick={(book) => moveFocus(book.id)}
                   rowIndex={rowIndex}
+                  isLastRow={rowIndex === shelves.length - 1}
                   editMode={editMode}
                   onReorder={(ids) => reorderRow(rowIndex, ids)}
                   onColorChange={changeSpineColor}
@@ -276,7 +277,7 @@ export function VirtualBookshelf({
                         <BookCover
                           book={book}
                           height={neighborCoverHeight}
-                          className="max-w-full rounded-md"
+                          className="max-w-full"
                         />
                       </motion.button>
                     ))}
@@ -324,7 +325,7 @@ export function VirtualBookshelf({
                         <BookCover
                           book={focusedBook}
                           height={focusedCoverHeight}
-                          className="max-w-full rounded-lg"
+                          className="max-w-full"
                         />
                       </button>
                     </motion.div>
@@ -381,7 +382,7 @@ export function VirtualBookshelf({
                         <BookCover
                           book={book}
                           height={neighborCoverHeight}
-                          className="max-w-full rounded-md"
+                          className="max-w-full"
                         />
                       </motion.button>
                     ))}

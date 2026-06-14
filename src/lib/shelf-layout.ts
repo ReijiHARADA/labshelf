@@ -38,8 +38,13 @@ export function splitBooksIntoShelves(
   return rows;
 }
 
-export function computeRowGap(books: Book[], shelfInnerWidth: number): number {
+export function computeRowGap(
+  books: Book[],
+  shelfInnerWidth: number,
+  isLastRow = false
+): number {
   if (books.length <= 1) return 0;
+  if (isLastRow) return SHELF_BOOK_GAP;
 
   const totalBooksWidth = books.reduce((sum, book) => sum + getSpineWidth(book), 0);
   const available = shelfInnerWidth - SHELF_ROW_PADDING;

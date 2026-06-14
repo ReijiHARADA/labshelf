@@ -50,7 +50,7 @@ export function BookGridSkeleton({ count = 12 }: { count?: number }) {
               style={{ width: `${90 + (i % 3) * 24}px` }}
             >
               <Skeleton
-                className="rounded-md mb-2"
+                className="rounded-none mb-2"
                 style={{ height: `${150 + (i % 2) * 24}px` }}
               />
               <Skeleton className="h-4 w-full mb-1" />
@@ -74,7 +74,7 @@ export function BookListSkeleton({ count = 6 }: { count?: number }) {
           transition={{ delay: i * 0.05 }}
           className="flex gap-4 p-4 rounded-lg border border-border/50"
         >
-          <Skeleton className="w-16 h-24 rounded-md flex-shrink-0" />
+          <Skeleton className="w-16 h-24 rounded-none flex-shrink-0" />
           <div className="flex-1">
             <Skeleton className="h-5 w-3/4 mb-2" />
             <Skeleton className="h-4 w-1/2 mb-3" />
@@ -93,7 +93,7 @@ export function BookDetailSkeleton() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-1">
-        <Skeleton className="w-full max-w-[200px] aspect-[2/3] rounded-md mx-auto lg:mx-0" />
+        <Skeleton className="w-full max-w-[200px] aspect-[2/3] rounded-none mx-auto lg:mx-0" />
         <div className="flex gap-2 mt-4 justify-center lg:justify-start">
           <Skeleton className="h-6 w-20 rounded-full" />
           <Skeleton className="h-6 w-16 rounded-full" />

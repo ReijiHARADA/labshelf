@@ -64,7 +64,7 @@ export function BookCover({
   };
 
   const imageClassName = cn(
-    'block max-w-full rounded-md shadow-soft',
+    'block max-w-full rounded-none shadow-soft',
     hasExplicitHeight || hasExplicitWidth ? 'object-contain' : 'h-auto w-full'
   );
 
@@ -100,7 +100,7 @@ export function BookCover({
         : undefined;
 
   const fallbackClassName = cn(
-    'relative inline-flex max-w-full items-center justify-center overflow-hidden rounded-md shadow-soft p-3',
+    'relative inline-flex max-w-full items-center justify-center overflow-hidden rounded-none shadow-soft p-3',
     !hasExplicitSize && sizeClasses[size],
     className
   );

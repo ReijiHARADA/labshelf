@@ -25,6 +25,7 @@ interface ShelfRowProps {
   shelfInnerWidth: number;
   onBookClick?: (book: Book) => void;
   rowIndex?: number;
+  isLastRow?: boolean;
   editMode?: boolean;
   onReorder?: (orderedIds: string[]) => void;
   onColorChange?: (bookId: string, color: string) => void;
@@ -35,6 +36,7 @@ export function ShelfRow({
   shelfInnerWidth,
   onBookClick,
   rowIndex = 0,
+  isLastRow = false,
   editMode = false,
   onReorder,
   onColorChange,
@@ -45,7 +47,7 @@ export function ShelfRow({
     })
   );
   const orderedIds = books.map((b) => b.id);
-  const rowGap = computeRowGap(books, shelfInnerWidth);
+  const rowGap = computeRowGap(books, shelfInnerWidth, isLastRow);
 
   const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -71,7 +73,7 @@ export function ShelfRow({
       >
         <SortableContext items={orderedIds} strategy={horizontalListSortingStrategy}>
           <div
-            className="flex items-end px-4 pb-0 min-h-[200px]"
+            className={`flex items-end px-4 pb-0 min-h-[200px] ${isLastRow ? 'justify-start' : ''}`}
             style={{ gap: `${rowGap}px` }}
           >
             {books.map((book, index) => (
