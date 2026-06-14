@@ -1,11 +1,18 @@
- 'use client';
+'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BookOpen } from 'lucide-react';
+import { LAB_BOOK_CATEGORIES } from '@/lib/book-classifier';
+
+function buildFooterCategories(fetched: string[]): string[] {
+  const known = new Set<string>(LAB_BOOK_CATEGORIES);
+  const extras = fetched.filter((category) => category && !known.has(category));
+  return [...LAB_BOOK_CATEGORIES, ...extras];
+}
 
 export function Footer() {
-  const [categories, setCategories] = useState<string[]>([]);
+  const [extraCategories, setExtraCategories] = useState<string[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -15,8 +22,12 @@ export function Footer() {
         if (!res.ok) return;
         const data = await res.json();
         const list = Array.isArray(data?.categories) ? data.categories : [];
+        const known = new Set<string>(LAB_BOOK_CATEGORIES);
+        const extras = list.filter(
+          (category: string) => category && !known.has(category)
+        );
         if (mounted) {
-          setCategories(list);
+          setExtraCategories(extras);
         }
       } catch {
         // noop: フッター表示のため失敗時は静かに無視
@@ -28,14 +39,17 @@ export function Footer() {
     };
   }, []);
 
-  const footerCategories = categories.slice(0, 6);
+  const footerCategories = useMemo(
+    () => buildFooterCategories(extraCategories),
+    [extraCategories]
+  );
 
   return (
     <footer className="border-t border-border/50 bg-muted/30">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Brand */}
-          <div className="md:col-span-1">
+          <div>
             <Link href="/" className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <BookOpen className="h-4 w-4" />
@@ -78,27 +92,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Categories */}
-          <div>
-            <h3 className="text-sm font-semibold mb-3">カテゴリ</h3>
-            <ul className="space-y-2">
-              {footerCategories.length === 0 ? (
-                <li className="text-sm text-muted-foreground">カテゴリは読み込み中です</li>
-              ) : (
-                footerCategories.map((category) => (
-                  <li key={category}>
-                    <Link
-                      href={`/browse?category=${encodeURIComponent(category)}`}
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {category}
-                    </Link>
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
-
           {/* Links */}
           <div>
             <h3 className="text-sm font-semibold mb-3">リンク</h3>
@@ -113,6 +106,31 @@ export function Footer() {
               </li>
             </ul>
           </div>
+        </div>
+
+        {/* Categories — full width */}
+        <div className="mt-10 pt-8 border-t border-border/50">
+          <div className="flex items-baseline justify-between gap-4 mb-4">
+            <h3 className="text-sm font-semibold">カテゴリ</h3>
+            <Link
+              href="/categories"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            >
+              すべて見る
+            </Link>
+          </div>
+          <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-2">
+            {footerCategories.map((category) => (
+              <li key={category}>
+                <Link
+                  href={`/browse?category=${encodeURIComponent(category)}`}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {category}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="mt-10 pt-6 border-t border-border/50">
