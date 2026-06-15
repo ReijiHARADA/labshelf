@@ -12,8 +12,9 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { normalizeToIsbn13 } from '@/lib/isbn';
+import { normalizeScannedProductCode } from '@/lib/isbn';
 import {
   LABSHELF_INGEST_TOKEN_KEY,
   LABSHELF_SHEET_ID_KEY,
@@ -26,8 +27,16 @@ type ScanStatus =
   | { type: 'running' }
   | { type: 'error'; message: string };
 
-const QUEUE_DEBOUNCE_MS = 3000;
 const MAX_QUEUE_HISTORY = 12;
+
+const QUEUE_DEBOUNCE_MS = 3000;
+
+type MagazineDraft = {
+  code: string;
+  title: string;
+  author: string;
+  publisher: string;
+};
 
 const GUIDE_WIDTH_RATIO = 0.72;
 const GUIDE_HEIGHT_RATIO = 0.34;
@@ -68,7 +77,7 @@ function pickGuideCandidate(
     const raw = code.rawValue || '';
     if (!raw) continue;
     if (!isInsideGuide(code.boundingBox, width, height)) continue;
-    if (!normalizeToIsbn13(raw)) continue;
+    if (!normalizeScannedProductCode(raw)) continue;
     return raw;
   }
   return null;
@@ -90,6 +99,7 @@ export default function ScanPage() {
   const [lastRaw, setLastRaw] = useState<string>('');
   const [savedSheetId, setSavedSheetId] = useState('');
   const [recentIsbn, setRecentIsbn] = useState<string>('');
+  const [magazineDraft, setMagazineDraft] = useState<MagazineDraft | null>(null);
 
   const supportsDetector = useMemo(() => hasBarcodeDetector(), []);
 
@@ -191,23 +201,44 @@ export default function ScanPage() {
     }
   }
 
-  function enqueueIsbn(isbn13: string) {
+  function enqueueIsbn(code: string, options?: { title?: string; author?: string; publisher?: string }) {
     const now = Date.now();
     const last = lastSubmittedRef.current;
-    if (last && last.isbn === isbn13 && now - last.at < QUEUE_DEBOUNCE_MS) {
+    if (last && last.isbn === code && now - last.at < QUEUE_DEBOUNCE_MS) {
       return;
     }
 
-    lastSubmittedRef.current = { isbn: isbn13, at: now };
-    setRecentIsbn(isbn13);
-    enqueueIngest(isbn13, tokenRef.current);
+    lastSubmittedRef.current = { isbn: code, at: now };
+    setRecentIsbn(code);
+    enqueueIngest(code, tokenRef.current, options);
+  }
+
+  function submitMagazineDraft() {
+    if (!magazineDraft?.title.trim()) return;
+    enqueueIsbn(magazineDraft.code, {
+      title: magazineDraft.title.trim(),
+      author: magazineDraft.author.trim() || undefined,
+      publisher: magazineDraft.publisher.trim() || undefined,
+    });
+    setMagazineDraft(null);
   }
 
   function reportFound(raw: string) {
     setLastRaw(raw);
-    const isbn13 = normalizeToIsbn13(raw);
-    if (!isbn13) return;
-    enqueueIsbn(isbn13);
+    const scanned = normalizeScannedProductCode(raw);
+    if (!scanned) return;
+
+    if (scanned.kind === 'magazine-jan') {
+      setMagazineDraft({
+        code: scanned.code,
+        title: '',
+        author: '',
+        publisher: '',
+      });
+      return;
+    }
+
+    enqueueIsbn(scanned.code);
   }
 
   function runBarcodeDetectorLoop() {
@@ -312,7 +343,7 @@ export default function ScanPage() {
               <div className="mt-2 space-y-2 text-sm text-muted-foreground">
                 <p>
                   <span className="font-medium text-foreground">使い方: </span>
-                  「開始」を押してカメラを起動し、本の背表紙などにあるISBNバーコードを、画面中央の枠の中に入れてください。読み取るとすぐ次の本をスキャンでき、登録はバックグラウンドで行われます。
+                  「開始」を押してカメラを起動し、本の背表紙や雑誌のバーコードを、画面中央の枠の中に入れてください。読み取るとすぐ次をスキャンでき、登録はバックグラウンドで行われます。雑誌（491始まりのコード）はタイトル入力が必要です。
                 </p>
                 <p className="text-xs">
                   {supportsDetector
@@ -424,6 +455,71 @@ export default function ScanPage() {
                   ) : null}
                 </div>
               )}
+              {magazineDraft ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3 text-amber-950">
+                  <div>
+                    <p className="font-semibold">雑誌コードを検出しました</p>
+                    <p className="font-mono text-sm mt-1">{magazineDraft.code}</p>
+                    <p className="text-xs mt-1 opacity-90">
+                      雑誌は書誌APIに載っていないことが多いため、タイトルを入力して登録してください。
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      タイトル <span className="text-red-600">*</span>
+                    </label>
+                    <Input
+                      value={magazineDraft.title}
+                      onChange={(e) =>
+                        setMagazineDraft((prev) =>
+                          prev ? { ...prev, title: e.target.value } : prev
+                        )
+                      }
+                      placeholder="例: POPEYE No.828 こんな部屋に住みたいんだ。"
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">著者・編集部</label>
+                      <Input
+                        value={magazineDraft.author}
+                        onChange={(e) =>
+                          setMagazineDraft((prev) =>
+                            prev ? { ...prev, author: e.target.value } : prev
+                          )
+                        }
+                        placeholder="例: マガジンハウス"
+                        className="bg-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">出版社</label>
+                      <Input
+                        value={magazineDraft.publisher}
+                        onChange={(e) =>
+                          setMagazineDraft((prev) =>
+                            prev ? { ...prev, publisher: e.target.value } : prev
+                          )
+                        }
+                        placeholder="例: マガジンハウス"
+                        className="bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      onClick={submitMagazineDraft}
+                      disabled={!magazineDraft.title.trim() || !token.trim()}
+                    >
+                      雑誌を登録
+                    </Button>
+                    <Button variant="outline" onClick={() => setMagazineDraft(null)}>
+                      キャンセル
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </section>
 

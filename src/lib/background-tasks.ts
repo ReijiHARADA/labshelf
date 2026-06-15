@@ -29,6 +29,9 @@ type IngestQueueItem = {
   isbn: string;
   itemId: string;
   token: string;
+  title?: string;
+  author?: string;
+  publisher?: string;
 };
 
 type SheetsSyncResult = {
@@ -185,7 +188,11 @@ class BackgroundTaskManager {
     }
   }
 
-  enqueueIngest(isbn13: string, token: string) {
+  enqueueIngest(
+    isbn13: string,
+    token: string,
+    options?: { title?: string; author?: string; publisher?: string }
+  ) {
     const now = Date.now();
     const last = this.lastSubmittedIsbn;
     if (last && last.isbn === isbn13 && now - last.at < INGEST_DEBOUNCE_MS) {
@@ -209,7 +216,14 @@ class BackgroundTaskManager {
       startedAt: now,
     });
 
-    this.ingestQueue.push({ isbn: isbn13, itemId, token });
+    this.ingestQueue.push({
+      isbn: isbn13,
+      itemId,
+      token,
+      title: options?.title,
+      author: options?.author,
+      publisher: options?.publisher,
+    });
     void this.drainIngestQueue();
     return itemId;
   }
@@ -233,7 +247,7 @@ class BackgroundTaskManager {
   }
 
   private async processIngestItem(item: IngestQueueItem) {
-    const { isbn: isbn13, itemId, token } = item;
+    const { isbn: isbn13, itemId, token, title, author, publisher } = item;
 
     this.upsertTask({
       id: itemId,
@@ -268,7 +282,12 @@ class BackgroundTaskManager {
           'Content-Type': 'application/json',
           'X-LabShelf-Token': authToken,
         },
-        body: JSON.stringify({ isbn: isbn13 }),
+        body: JSON.stringify({
+          isbn: isbn13,
+          ...(title ? { title } : {}),
+          ...(author ? { author } : {}),
+          ...(publisher ? { publisher } : {}),
+        }),
         cache: 'no-store',
       });
       const data = await response.json().catch(() => ({}));
@@ -293,8 +312,26 @@ class BackgroundTaskManager {
       const sheetError =
         typeof data?.sheet?.error === 'string' ? data.sheet.error : undefined;
       const hasSheetError = Boolean(sheetError);
+      const needsManualTitle = Array.isArray(data?.needsManualTitle)
+        ? data.needsManualTitle.map(String)
+        : [];
+      const needsTitle = needsManualTitle.includes(isbn13);
       const hasAdded = added.length > 0;
       const hasSkipped = skipped.length > 0;
+
+      if (needsTitle) {
+        this.upsertTask({
+          id: itemId,
+          kind: 'book-ingest',
+          status: 'warning',
+          title: 'タイトル入力が必要',
+          message: '雑誌コードです。スキャン画面でタイトルを入力して登録してください',
+          meta: { isbn: isbn13 },
+          startedAt: this.tasks.find((task) => task.id === itemId)?.startedAt ?? Date.now(),
+          finishedAt: Date.now(),
+        });
+        return;
+      }
 
       this.upsertTask({
         id: itemId,

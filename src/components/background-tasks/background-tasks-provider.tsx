@@ -11,7 +11,11 @@ type BackgroundTasksContextValue = {
   isSheetsSyncRunning: boolean;
   activeTaskCount: number;
   startSheetsSync: (sheetId: string) => ReturnType<typeof backgroundTasks.startSheetsSync>;
-  enqueueIngest: (isbn13: string, token: string) => ReturnType<typeof backgroundTasks.enqueueIngest>;
+  enqueueIngest: (
+    isbn13: string,
+    token: string,
+    options?: { title?: string; author?: string; publisher?: string }
+  ) => ReturnType<typeof backgroundTasks.enqueueIngest>;
   ingestTasks: BackgroundTask[];
 };
 
@@ -36,8 +40,8 @@ export function BackgroundTasksProvider({ children }: { children: React.ReactNod
         (task) => task.status === 'running' || task.status === 'pending'
       ).length,
       startSheetsSync: (sheetId: string) => backgroundTasks.startSheetsSync(sheetId),
-      enqueueIngest: (isbn13: string, token: string) =>
-        backgroundTasks.enqueueIngest(isbn13, token),
+      enqueueIngest: (isbn13: string, token: string, options?: { title?: string; author?: string; publisher?: string }) =>
+        backgroundTasks.enqueueIngest(isbn13, token, options),
       ingestTasks: tasks.filter((task) => task.kind === 'book-ingest'),
     }),
     [tasks, syncRunning]
