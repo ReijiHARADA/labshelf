@@ -23,10 +23,22 @@ type ScanStatus =
   | { type: 'idle' }
   | { type: 'starting' }
   | { type: 'running' }
-  | { type: 'error'; message: string }
-  | { type: 'found'; isbn: string };
+  | { type: 'error'; message: string };
 
-type ResultTone = 'success' | 'warning' | 'error';
+type QueueItemStatus = 'pending' | 'processing' | 'success' | 'warning' | 'error';
+
+type QueueItem = {
+  id: string;
+  isbn: string;
+  status: QueueItemStatus;
+  title: string;
+  message?: string;
+  detail?: string;
+  at: number;
+};
+
+const QUEUE_DEBOUNCE_MS = 3000;
+const MAX_QUEUE_HISTORY = 12;
 
 const GUIDE_WIDTH_RATIO = 0.72;
 const GUIDE_HEIGHT_RATIO = 0.34;
@@ -78,8 +90,11 @@ export default function ScanPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
   const scanningRef = useRef(false);
-  const ingestingRef = useRef(false);
   const lastSubmittedRef = useRef<{ isbn: string; at: number } | null>(null);
+  const queueRef = useRef<Array<{ isbn: string; itemId: string }>>([]);
+  const activeIsbnsRef = useRef<Set<string>>(new Set());
+  const processingRef = useRef(false);
+  const tokenRef = useRef('');
 
   const [status, setStatus] = useState<ScanStatus>({ type: 'idle' });
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -87,19 +102,14 @@ export default function ScanPage() {
   const [token, setToken] = useState<string>('');
   const [lastRaw, setLastRaw] = useState<string>('');
   const [savedSheetId, setSavedSheetId] = useState('');
-
-  const [result, setResult] = useState<{
-    ok: boolean;
-    tone: ResultTone;
-    title: string;
-    message: string;
-    detail?: string;
-    added?: string[];
-    skipped?: string[];
-    invalid?: string[];
-  } | null>(null);
+  const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
+  const [recentIsbn, setRecentIsbn] = useState<string>('');
 
   const supportsDetector = useMemo(() => hasBarcodeDetector(), []);
+
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
 
   useEffect(() => {
     const readToken = () =>
@@ -161,7 +171,9 @@ export default function ScanPage() {
   }, []);
 
   async function startCamera() {
-    setResult(null);
+    setQueueItems([]);
+    queueRef.current = [];
+    activeIsbnsRef.current.clear();
     setStatus({ type: 'starting' });
     try {
       // idle に戻さない（video がアンマウントして ref が null になるのを防ぐ）
@@ -196,11 +208,159 @@ export default function ScanPage() {
     }
   }
 
-  async function reportFound(raw: string): Promise<boolean> {
+  function upsertQueueItem(next: QueueItem) {
+    setQueueItems((prev) => {
+      const idx = prev.findIndex((item) => item.id === next.id);
+      const merged =
+        idx === -1 ? [next, ...prev] : prev.map((item) => (item.id === next.id ? next : item));
+      return merged.slice(0, MAX_QUEUE_HISTORY);
+    });
+  }
+
+  async function processIngestItem(itemId: string, isbn13: string) {
+    upsertQueueItem({
+      id: itemId,
+      isbn: isbn13,
+      status: 'processing',
+      title: '登録中',
+      message: 'データベースとスプレッドシートへ反映しています',
+      at: Date.now(),
+    });
+
+    const authToken = tokenRef.current.trim();
+    if (!authToken) {
+      upsertQueueItem({
+        id: itemId,
+        isbn: isbn13,
+        status: 'error',
+        title: '送信できません',
+        message: '共有トークンを入力してください',
+        at: Date.now(),
+      });
+      activeIsbnsRef.current.delete(isbn13);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/ingest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-LabShelf-Token': authToken,
+        },
+        body: JSON.stringify({ isbn: isbn13 }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        upsertQueueItem({
+          id: itemId,
+          isbn: isbn13,
+          status: 'error',
+          title: '追加に失敗しました',
+          message: data?.error || `追加に失敗しました (${res.status})`,
+          detail:
+            typeof data?.sheet?.error === 'string' ? data.sheet.error : undefined,
+          at: Date.now(),
+        });
+        return;
+      }
+
+      const added = Array.isArray(data?.added) ? data.added : [];
+      const skipped = Array.isArray(data?.skipped) ? data.skipped : [];
+      const sheetError =
+        typeof data?.sheet?.error === 'string' ? data.sheet.error : undefined;
+      const hasSheetError = Boolean(sheetError);
+      const hasAdded = added.length > 0;
+      const hasSkipped = skipped.length > 0;
+
+      upsertQueueItem({
+        id: itemId,
+        isbn: isbn13,
+        status: hasSheetError ? 'error' : hasAdded ? 'success' : hasSkipped ? 'warning' : 'error',
+        title: hasAdded
+          ? hasSheetError
+            ? '一部失敗（スプレッドシート未反映）'
+            : '登録完了'
+          : hasSkipped
+            ? '既に登録済み'
+            : '追加に失敗しました',
+        message:
+          hasAdded && !hasSheetError
+            ? 'データベースとスプレッドシートへ追加しました'
+            : hasAdded && hasSheetError
+              ? 'データベースへの追加は成功しましたが、スプレッドシート追記に失敗しました'
+              : hasSkipped
+                ? 'このISBNは既に登録済みのためスキップしました'
+                : '追加できませんでした',
+        detail: sheetError,
+        at: Date.now(),
+      });
+    } catch (e) {
+      upsertQueueItem({
+        id: itemId,
+        isbn: isbn13,
+        status: 'error',
+        title: '追加に失敗しました',
+        message: e instanceof Error ? e.message : '追加に失敗しました',
+        at: Date.now(),
+      });
+    } finally {
+      activeIsbnsRef.current.delete(isbn13);
+    }
+  }
+
+  async function drainIngestQueue() {
+    if (processingRef.current) return;
+    processingRef.current = true;
+
+    try {
+      while (queueRef.current.length > 0) {
+        const next = queueRef.current.shift();
+        if (!next) continue;
+        await processIngestItem(next.itemId, next.isbn);
+      }
+    } finally {
+      processingRef.current = false;
+      if (queueRef.current.length > 0) {
+        void drainIngestQueue();
+      }
+    }
+  }
+
+  function enqueueIsbn(isbn13: string) {
+    const now = Date.now();
+    const last = lastSubmittedRef.current;
+    if (last && last.isbn === isbn13 && now - last.at < QUEUE_DEBOUNCE_MS) {
+      return;
+    }
+    if (activeIsbnsRef.current.has(isbn13)) {
+      return;
+    }
+
+    lastSubmittedRef.current = { isbn: isbn13, at: now };
+    activeIsbnsRef.current.add(isbn13);
+    setRecentIsbn(isbn13);
+
+    const itemId = `${isbn13}-${now}`;
+    upsertQueueItem({
+      id: itemId,
+      isbn: isbn13,
+      status: 'pending',
+      title: 'キューに追加',
+      message: 'バックグラウンドで登録します',
+      at: now,
+    });
+
+    queueRef.current.push({ isbn: isbn13, itemId });
+    void drainIngestQueue();
+  }
+
+  function reportFound(raw: string) {
     setLastRaw(raw);
     const isbn13 = normalizeToIsbn13(raw);
-    if (!isbn13) return false;
-    return addIsbn(isbn13);
+    if (!isbn13) return;
+    enqueueIsbn(isbn13);
   }
 
   function runBarcodeDetectorLoop() {
@@ -222,8 +382,7 @@ export default function ScanPage() {
           video.videoHeight || video.clientHeight || 0
         );
         if (v) {
-          const accepted = await reportFound(v);
-          if (accepted) return;
+          reportFound(v);
         }
       } catch {
         // ignore and keep scanning
@@ -249,8 +408,7 @@ export default function ScanPage() {
           video
         );
         if (result?.getText) {
-          const accepted = await reportFound(result.getText());
-          if (accepted) return;
+          reportFound(result.getText());
         }
       } catch {
         // keep trying while camera is running
@@ -263,142 +421,22 @@ export default function ScanPage() {
     void decode();
   }
 
-  async function resumeScanning() {
-    if (!streamRef.current || !videoRef.current) return;
-    if (status.type === 'starting') return;
-    scanningRef.current = true;
-    setStatus({ type: 'running' });
-    if (supportsDetector) {
-      runBarcodeDetectorLoop();
-    } else {
-      await runZxingLoop();
-    }
-  }
-
-  async function addIsbn(isbn13: string): Promise<boolean> {
-    if (ingestingRef.current) return false;
-    const now = Date.now();
-    const last = lastSubmittedRef.current;
-    if (last && last.isbn === isbn13 && now - last.at < 3000) {
-      return false;
-    }
-    scanningRef.current = false;
-    setStatus({ type: 'found', isbn: isbn13 });
-    lastSubmittedRef.current = { isbn: isbn13, at: now };
-    ingestingRef.current = true;
-    setResult(null);
-    if (!token.trim()) {
-      setResult({
-        ok: false,
-        tone: 'error',
-        title: '送信できません',
-        message: '共有トークンを入力してください',
-      });
-      ingestingRef.current = false;
-      return true;
-    }
-    try {
-      const res = await fetch('/api/ingest', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-LabShelf-Token': token.trim(),
-        },
-        body: JSON.stringify({ isbn: isbn13 }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setResult({
-          ok: false,
-          tone: 'error',
-          title: '追加に失敗しました',
-          message: data?.error || `追加に失敗しました (${res.status})`,
-          detail:
-            typeof data?.sheet?.error === 'string'
-              ? data.sheet.error
-              : undefined,
-        });
-        return true;
-      }
-      const added = Array.isArray(data?.added) ? data.added : [];
-      const skipped = Array.isArray(data?.skipped) ? data.skipped : [];
-      const invalid = Array.isArray(data?.invalid) ? data.invalid : [];
-      const sheetError =
-        typeof data?.sheet?.error === 'string' ? data.sheet.error : undefined;
-      const hasSheetError = Boolean(sheetError);
-      const hasAdded = added.length > 0;
-      const hasSkipped = skipped.length > 0;
-      setResult({
-        ok: hasAdded && Boolean(data?.success) && !hasSheetError,
-        tone: hasSheetError
-          ? 'error'
-          : hasAdded
-            ? 'success'
-            : hasSkipped
-              ? 'warning'
-              : 'error',
-        title: hasAdded
-          ? hasSheetError
-            ? '一部失敗（スプレッドシート未反映）'
-            : '登録完了'
-          : hasSkipped
-            ? '既に登録済み'
-            : '追加に失敗しました',
-        message:
-          hasAdded && !hasSheetError
-            ? 'データベースとスプレッドシートへ追加しました'
-            : hasAdded && hasSheetError
-              ? 'データベースへの追加は成功しましたが、スプレッドシート追記に失敗しました'
-            : hasSkipped
-              ? 'このISBNは既に登録済みのためスキップしました'
-              : '追加できませんでした',
-        detail: sheetError,
-        added,
-        skipped,
-        invalid,
-      });
-      return true;
-    } catch (e) {
-      setResult({
-        ok: false,
-        tone: 'error',
-        title: '追加に失敗しました',
-        message: e instanceof Error ? e.message : '追加に失敗しました',
-        detail: undefined,
-      });
-      return true;
-    } finally {
-      ingestingRef.current = false;
-      // 同じカメラ起動状態のまま次の本を読み取れるように再開する。
-      window.setTimeout(() => {
-        void resumeScanning();
-      }, 600);
-    }
-    return true;
-  }
-
-  const foundIsbn = status.type === 'found' ? status.isbn : '';
-  const isCameraOn =
-    status.type === 'running' || status.type === 'found' || status.type === 'error';
+  const pendingCount = queueItems.filter(
+    (item) => item.status === 'pending' || item.status === 'processing'
+  ).length;
+  const isCameraOn = status.type === 'running' || status.type === 'error';
   const showVideoPreview =
-    status.type === 'starting' ||
-    status.type === 'running' ||
-    status.type === 'found' ||
-    status.type === 'error';
+    status.type === 'starting' || status.type === 'running' || status.type === 'error';
   const frameClass =
-    status.type === 'found'
+    recentIsbn && status.type === 'running'
       ? 'border-emerald-400'
       : status.type === 'error'
         ? 'border-red-400'
-        : result?.tone === 'success'
-          ? 'border-emerald-400'
-          : result?.tone === 'warning'
+        : status.type === 'running'
+          ? pendingCount > 0
             ? 'border-amber-400'
-            : result?.tone === 'error'
-              ? 'border-red-400'
-              : status.type === 'running'
-                ? 'border-sky-400'
-                : 'border-border';
+            : 'border-sky-400'
+          : 'border-border';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -426,7 +464,7 @@ export default function ScanPage() {
               <div className="mt-2 space-y-2 text-sm text-muted-foreground">
                 <p>
                   <span className="font-medium text-foreground">使い方: </span>
-                  「開始」を押してカメラを起動し、本の背表紙などにあるISBNバーコードを、画面中央の枠の中に入れてください。読み取れると自動でデータベースとスプレッドシートに追加されます。
+                  「開始」を押してカメラを起動し、本の背表紙などにあるISBNバーコードを、画面中央の枠の中に入れてください。読み取るとすぐ次の本をスキャンでき、登録はバックグラウンドで行われます。
                 </p>
                 <p className="text-xs">
                   {supportsDetector
@@ -521,21 +559,21 @@ export default function ScanPage() {
                 </div>
               )}
               {status.type === 'running' && (
-                <div className="text-sm text-muted-foreground">
-                  バーコードを枠内に入れてください。
-                  {lastRaw ? `（直近: ${lastRaw}）` : ''}
-                </div>
-              )}
-              {status.type === 'found' && (
-                <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">検出したISBN</p>
-                    <p className="font-mono text-lg truncate">{foundIsbn}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      自動で追加しています...
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p>
+                    バーコードを枠内に入れてください。読み取った本はそのまま次をスキャンできます。
+                    {lastRaw ? `（直近: ${lastRaw}）` : ''}
+                  </p>
+                  {pendingCount > 0 ? (
+                    <p className="text-amber-800 dark:text-amber-200">
+                      バックグラウンド登録中: {pendingCount} 件
                     </p>
-                  </div>
-                  <BookPlus className="h-5 w-5 text-muted-foreground" />
+                  ) : null}
+                  {recentIsbn ? (
+                    <p className="font-mono text-xs text-foreground/80">
+                      直近キュー: {recentIsbn}
+                    </p>
+                  ) : null}
                 </div>
               )}
             </div>
@@ -593,40 +631,53 @@ export default function ScanPage() {
           </section>
         </div>
 
-        {result && (
-          <div
-            className={cn(
-              'rounded-lg border p-4 text-sm flex items-start gap-2',
-              result.tone === 'success'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                : result.tone === 'warning'
-                  ? 'bg-amber-50 border-amber-200 text-amber-900'
-                  : 'bg-red-50 border-red-200 text-red-900'
-            )}
-          >
-            {result.tone === 'success' ? (
-              <CheckCircle2 className="h-5 w-5 mt-0.5" />
-            ) : (
-              <AlertCircle className="h-5 w-5 mt-0.5" />
-            )}
-            <div className="space-y-1">
-              <div className="font-semibold">{result.title}</div>
-              <div>{result.message}</div>
-              {result.detail ? (
-                <div className="text-xs opacity-90 break-all">
-                  原因詳細: {result.detail}
-                </div>
-              ) : null}
-              {result.added?.length ? (
-                <div>追加: {result.added.join(', ')}</div>
-              ) : null}
-              {result.skipped?.length ? (
-                <div>既存: {result.skipped.join(', ')}</div>
-              ) : null}
-              {result.invalid?.length ? (
-                <div>不正: {result.invalid.join(', ')}</div>
-              ) : null}
+        {queueItems.length > 0 && (
+          <div className="rounded-lg border border-border bg-background p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold">登録キュー</h3>
+              {pendingCount > 0 ? (
+                <span className="text-xs text-muted-foreground">
+                  {pendingCount} 件処理中
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">待機なし</span>
+              )}
             </div>
+            <ul className="space-y-2">
+              {queueItems.map((item) => (
+                <li
+                  key={item.id}
+                  className={cn(
+                    'rounded-md border px-3 py-2 text-sm',
+                    item.status === 'success' && 'border-emerald-200 bg-emerald-50 text-emerald-950',
+                    item.status === 'warning' && 'border-amber-200 bg-amber-50 text-amber-950',
+                    item.status === 'error' && 'border-red-200 bg-red-50 text-red-950',
+                    item.status === 'processing' && 'border-sky-200 bg-sky-50 text-sky-950',
+                    item.status === 'pending' && 'border-border bg-muted/30 text-foreground'
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium">{item.title}</p>
+                      <p className="font-mono text-xs mt-0.5">{item.isbn}</p>
+                      {item.message ? (
+                        <p className="text-xs mt-1 opacity-90">{item.message}</p>
+                      ) : null}
+                      {item.detail ? (
+                        <p className="text-xs mt-1 opacity-80 break-all">{item.detail}</p>
+                      ) : null}
+                    </div>
+                    {item.status === 'success' ? (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                    ) : item.status === 'processing' || item.status === 'pending' ? (
+                      <BookPlus className="h-4 w-4 shrink-0 mt-0.5 animate-pulse" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
