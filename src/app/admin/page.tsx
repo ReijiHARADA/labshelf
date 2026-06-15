@@ -29,9 +29,11 @@ import {
   LABSHELF_INGEST_TOKEN_KEY,
   LABSHELF_SHEET_ID_KEY,
 } from '@/lib/labshelf-client-storage';
+import { LABSHELF_BOOKS_UPDATED_EVENT } from '@/lib/background-tasks';
+import { useBackgroundTasks } from '@/components/background-tasks/background-tasks-provider';
 
 export default function AdminPage() {
-  const [isSyncing, setIsSyncing] = useState(false);
+  const { isSheetsSyncRunning, startSheetsSync } = useBackgroundTasks();
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
   const [sheetId, setSheetId] = useState('');
@@ -96,6 +98,14 @@ export default function AdminPage() {
     loadCategories();
   }, [loadBooks, loadCategories]);
 
+  useEffect(() => {
+    const onBooksUpdated = () => {
+      void loadBooks();
+    };
+    window.addEventListener(LABSHELF_BOOKS_UPDATED_EVENT, onBooksUpdated);
+    return () => window.removeEventListener(LABSHELF_BOOKS_UPDATED_EVENT, onBooksUpdated);
+  }, [loadBooks]);
+
   const extractSheetId = (input: string): string => {
     const urlMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
     if (urlMatch) {
@@ -130,65 +140,42 @@ export default function AdminPage() {
       return;
     }
 
-    setIsSyncing(true);
     setSyncResult(null);
 
-    try {
-      const response = await fetch(`/api/sync?sheetId=${encodeURIComponent(sheetId)}`, {
-        method: 'POST',
-      });
+    const data = await startSheetsSync(sheetId);
 
-      const data = await response.json();
-
-      if (data.success) {
-        await loadBooks();
-        const newLog: SyncLog = {
-          id: Date.now().toString(),
-          timestamp: new Date().toISOString(),
-          status: 'success',
-          bookCount: data.bookCount,
-          duration: data.duration || 0,
-        };
-        setSyncLogs((prev) => [newLog, ...prev]);
-        setLastSyncAt(new Date());
-        setSyncResult({
-          success: true,
-          message: `${data.bookCount}冊の本を同期しました`,
-          bookCount: data.bookCount,
-        });
-      } else {
-        const newLog: SyncLog = {
-          id: Date.now().toString(),
-          timestamp: new Date().toISOString(),
-          status: 'error',
-          bookCount: 0,
-          errorMessage: data.errors?.[0] || '同期に失敗しました',
-          duration: data.duration || 0,
-        };
-        setSyncLogs((prev) => [newLog, ...prev]);
-        setSyncResult({
-          success: false,
-          message: data.errors?.[0] || '同期に失敗しました',
-        });
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+    if (data.success) {
+      await loadBooks();
       const newLog: SyncLog = {
         id: Date.now().toString(),
         timestamp: new Date().toISOString(),
-        status: 'error',
-        bookCount: 0,
-        errorMessage,
-        duration: 0,
+        status: 'success',
+        bookCount: data.bookCount ?? 0,
+        duration: data.duration || 0,
       };
       setSyncLogs((prev) => [newLog, ...prev]);
+      setLastSyncAt(new Date());
       setSyncResult({
-        success: false,
-        message: errorMessage,
+        success: true,
+        message: data.message,
+        bookCount: data.bookCount,
       });
-    } finally {
-      setIsSyncing(false);
+      return;
     }
+
+    const newLog: SyncLog = {
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+      status: 'error',
+      bookCount: 0,
+      errorMessage: data.message,
+      duration: data.duration || 0,
+    };
+    setSyncLogs((prev) => [newLog, ...prev]);
+    setSyncResult({
+      success: false,
+      message: data.message,
+    });
   };
 
   const handleAddCategory = async () => {
@@ -289,15 +276,15 @@ export default function AdminPage() {
           </div>
           <Button
             onClick={handleSync}
-            disabled={isSyncing || !sheetId}
+            disabled={isSheetsSyncRunning || !sheetId}
             size="lg"
           >
-            {isSyncing ? (
+            {isSheetsSyncRunning ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <RefreshCw className="h-4 w-4 mr-2" />
             )}
-            {isSyncing ? '同期中...' : '今すぐ同期'}
+            {isSheetsSyncRunning ? '同期中...' : '今すぐ同期'}
           </Button>
         </div>
 
