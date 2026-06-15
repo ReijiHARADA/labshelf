@@ -27,7 +27,7 @@ export function BookDeleteEditor({ bookId, bookTitle }: Props) {
     }
 
     const ok = window.confirm(
-      `「${bookTitle}」をデータベースから削除します。元に戻せません。続行しますか？`
+      `「${bookTitle}」をデータベースとスプレッドシートから削除します。元に戻せません。続行しますか？`
     );
     if (!ok) return;
 
@@ -65,7 +65,7 @@ export function BookDeleteEditor({ bookId, bookTitle }: Props) {
       <div>
         <p className="text-sm font-medium text-red-950">この本を削除</p>
         <p className="mt-1 text-xs text-red-900/80">
-          データベースからこの本の情報を削除します。スプレッドシート上の行は残ります。
+          データベースとスプレッドシート（ISBN列が一致する行）からこの本を削除します。
         </p>
       </div>
       <div className="space-y-2">

@@ -7,6 +7,7 @@ import {
   updateBookInStore,
   removeBookFromStore,
 } from '@/lib/books-store';
+import { deleteIsbnsFromSheet } from '@/lib/sheets-append';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 import {
   updateBookCategoryInDatabase,
@@ -262,6 +263,14 @@ export async function DELETE(
   }
 
   try {
+    const sheetResult = await deleteIsbnsFromSheet([book.isbn]);
+    if (!sheetResult.ok) {
+      return NextResponse.json(
+        { success: false, message: sheetResult.error },
+        { status: 502 }
+      );
+    }
+
     const deleted = await deleteBookFromDatabase(id);
     if (!deleted) {
       return NextResponse.json(
@@ -272,8 +281,11 @@ export async function DELETE(
     removeBookFromStore(id);
     return NextResponse.json({
       success: true,
-      message: '本を削除しました',
+      message: sheetResult.skipped
+        ? '本をデータベースから削除しました'
+        : '本をデータベースとスプレッドシートから削除しました',
       id,
+      sheet: sheetResult.skipped ? undefined : { deleted: sheetResult.deleted },
     });
   } catch (error) {
     return NextResponse.json(

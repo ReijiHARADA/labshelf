@@ -4,6 +4,7 @@
  * - 対象: A1=no, B1=isbn, C1=title
  * - A2以降: 通し番号, B2以降: ISBN, C2以降: タイトル
  * - POST(JSON): { "items": [{ "isbn": "978...", "title": "..." }, ...] }
+ * - POST(JSON): { "action": "delete", "isbns": ["978...", "491..."] }
  * - Header: X-LabShelf-Token: <shared token>
  *
  * 事前に以下をスクリプトプロパティに設定:
@@ -51,6 +52,12 @@ function doPost(e) {
       } catch (_) {
         body = {};
       }
+
+      var action = String(body.action || 'append').toLowerCase();
+      if (action === 'delete') {
+        return deleteByIsbn_(sheet, body);
+      }
+
       var items = Array.isArray(body.items) ? body.items : [];
       var cleaned = [];
       var seen = {};
@@ -149,6 +156,80 @@ function getNextSerial_(sheet, lastRow) {
     if (!isNaN(n) && n > maxNo) maxNo = n;
   }
   return maxNo + 1;
+}
+
+function deleteByIsbn_(sheet, body) {
+  normalizeSheetFormat_(sheet);
+
+  var isbns = Array.isArray(body.isbns) ? body.isbns : [];
+  if (isbns.length === 0 && Array.isArray(body.items)) {
+    for (var i = 0; i < body.items.length; i++) {
+      var item = body.items[i];
+      if (typeof item === 'string') {
+        isbns.push(item);
+      } else if (item && item.isbn) {
+        isbns.push(String(item.isbn));
+      }
+    }
+  }
+
+  var targets = {};
+  for (var j = 0; j < isbns.length; j++) {
+    var normalized = String(isbns[j] || '').replace(/[^0-9]/g, '');
+    if (normalized) targets[normalized] = true;
+  }
+  var targetKeys = Object.keys(targets);
+  if (targetKeys.length === 0) {
+    return json_({ ok: true, deleted: [] }, 200);
+  }
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    return json_({ ok: true, deleted: [] }, 200);
+  }
+
+  var isbnCol = 2;
+  var numRows = lastRow - 1;
+  var values = sheet.getRange(2, isbnCol, numRows, 1).getValues();
+  var rowsToDelete = [];
+  var deleted = [];
+  for (var r = 0; r < values.length; r++) {
+    var isbn = String(values[r][0] || '').replace(/[^0-9]/g, '');
+    if (isbn && targets[isbn]) {
+      rowsToDelete.push(r + 2);
+      deleted.push(isbn);
+    }
+  }
+
+  rowsToDelete.sort(function (a, b) {
+    return b - a;
+  });
+  for (var k = 0; k < rowsToDelete.length; k++) {
+    sheet.deleteRow(rowsToDelete[k]);
+  }
+
+  renumberSerial_(sheet);
+
+  var uniqueDeleted = [];
+  var seenDeleted = {};
+  for (var d = 0; d < deleted.length; d++) {
+    if (seenDeleted[deleted[d]]) continue;
+    seenDeleted[deleted[d]] = true;
+    uniqueDeleted.push(deleted[d]);
+  }
+
+  return json_({ ok: true, deleted: uniqueDeleted }, 200);
+}
+
+function renumberSerial_(sheet) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  var count = lastRow - 1;
+  var nums = [];
+  for (var i = 0; i < count; i++) {
+    nums.push([i + 1]);
+  }
+  sheet.getRange(2, 1, count, 1).setValues(nums);
 }
 
 function json_(obj, status) {

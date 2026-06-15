@@ -18,12 +18,17 @@ const navigation = [
   { name: 'カテゴリ', href: '/categories' },
 ];
 
-export function Header() {
+export function Header({ hasBanner = false }: { hasBanner?: boolean }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full glass border-b border-border/50">
+    <header
+      className={cn(
+        'w-full glass',
+        !hasBanner && 'border-b border-border/50'
+      )}
+    >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="relative flex h-16 items-center justify-between">
           {/* Logo */}

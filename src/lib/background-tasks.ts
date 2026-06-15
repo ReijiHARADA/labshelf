@@ -56,12 +56,20 @@ class BackgroundTaskManager {
   private activeIsbns = new Set<string>();
   private lastSubmittedIsbn: { isbn: string; at: number } | null = null;
   private syncRunning = false;
+  private tickTimer: ReturnType<typeof setInterval> | null = null;
+  private lastSnapshotKey = '';
 
   subscribe(listener: Listener): () => void {
     this.listeners.add(listener);
-    listener(this.getVisibleTasks());
+    const snapshot = this.getVisibleTasks();
+    this.lastSnapshotKey = this.taskSnapshotKey(snapshot);
+    listener(snapshot);
+    this.ensureTickRunning();
     return () => {
       this.listeners.delete(listener);
+      if (this.listeners.size === 0) {
+        this.stopTick();
+      }
     };
   }
 
@@ -87,11 +95,48 @@ class BackgroundTaskManager {
     );
   }
 
-  private emit() {
+  private taskSnapshotKey(tasks: BackgroundTask[]): string {
+    return tasks.map((task) => `${task.id}:${task.status}:${task.finishedAt ?? ''}`).join('|');
+  }
+
+  private emitIfChanged() {
     const snapshot = this.getVisibleTasks();
+    const key = this.taskSnapshotKey(snapshot);
+    if (key === this.lastSnapshotKey) return;
+    this.lastSnapshotKey = key;
     for (const listener of this.listeners) {
       listener(snapshot);
     }
+  }
+
+  private ensureTickRunning() {
+    if (this.listeners.size === 0) {
+      this.stopTick();
+      return;
+    }
+    if (this.tickTimer) return;
+    this.tickTimer = setInterval(() => {
+      if (this.listeners.size === 0) {
+        this.stopTick();
+        return;
+      }
+      this.emitIfChanged();
+    }, 1000);
+  }
+
+  private stopTick() {
+    if (!this.tickTimer) return;
+    clearInterval(this.tickTimer);
+    this.tickTimer = null;
+  }
+
+  private emit() {
+    const snapshot = this.getVisibleTasks();
+    this.lastSnapshotKey = this.taskSnapshotKey(snapshot);
+    for (const listener of this.listeners) {
+      listener(snapshot);
+    }
+    this.ensureTickRunning();
   }
 
   private upsertTask(task: BackgroundTask) {

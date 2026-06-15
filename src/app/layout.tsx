@@ -3,9 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
-import { Header } from "@/components/layout/header";
+import { SiteHeader } from "@/components/layout/site-header";
 import { Footer } from "@/components/layout/footer";
-import { BackgroundTaskBanner } from "@/components/background-tasks/background-task-banner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,8 +44,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background font-sans">
         <Providers>
-          <Header />
-          <BackgroundTaskBanner />
+          <SiteHeader />
           <main className="flex-1">{children}</main>
           <Footer />
         </Providers>
