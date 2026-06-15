@@ -113,6 +113,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   </div>
                   <BookSettingsDialog
                     bookId={book.id}
+                    bookTitle={book.title}
                     category={book.category}
                     dimensions={book.dimensions}
                     borrowedBy={book.borrowedBy}

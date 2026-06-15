@@ -35,6 +35,10 @@ export function updateBookInStore(updated: Book): void {
   cachedBooks = [...cachedBooks.slice(0, idx), updated, ...cachedBooks.slice(idx + 1)];
 }
 
+export function removeBookFromStore(id: string): void {
+  cachedBooks = cachedBooks.filter((book) => book.id !== id);
+}
+
 export function setCustomCategories(categories: string[]): void {
   customCategories = [...new Set(categories.map((c) => c.trim()).filter(Boolean))];
 }

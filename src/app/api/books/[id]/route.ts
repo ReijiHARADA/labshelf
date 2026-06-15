@@ -5,6 +5,7 @@ import {
   getAllCategories,
   addCategory,
   updateBookInStore,
+  removeBookFromStore,
 } from '@/lib/books-store';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 import {
@@ -14,7 +15,10 @@ import {
   updateBookDimensionsInDatabase,
   updateBookShelfInDatabase,
   updateBookSpineColorInDatabase,
+  deleteBookFromDatabase,
 } from '@/lib/books-db';
+
+const DELETE_PASSWORD = 'admin';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -231,4 +235,53 @@ export async function PATCH(
   }
 
   return NextResponse.json({ book: updated });
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  await ensureBooksLoaded();
+  const { id } = await params;
+  const book = getBookById(id);
+
+  if (!book) {
+    return NextResponse.json(
+      { error: '本が見つかりませんでした' },
+      { status: 404 }
+    );
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const password = typeof body?.password === 'string' ? body.password : '';
+  if (password !== DELETE_PASSWORD) {
+    return NextResponse.json(
+      { success: false, message: 'パスワードが正しくありません' },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const deleted = await deleteBookFromDatabase(id);
+    if (!deleted) {
+      return NextResponse.json(
+        { success: false, message: '本の削除に失敗しました' },
+        { status: 500 }
+      );
+    }
+    removeBookFromStore(id);
+    return NextResponse.json({
+      success: true,
+      message: '本を削除しました',
+      id,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: error instanceof Error ? error.message : '本の削除に失敗しました',
+      },
+      { status: 500 }
+    );
+  }
 }

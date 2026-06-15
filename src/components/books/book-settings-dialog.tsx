@@ -15,10 +15,12 @@ import { BookCategoryEditor } from '@/components/books/book-category-editor';
 import { BookCoverUploader } from '@/components/books/book-cover-uploader';
 import { BookLoanEditor } from '@/components/books/book-loan-editor';
 import { BookSizeEditor } from '@/components/books/book-size-editor';
+import { BookDeleteEditor } from '@/components/books/book-delete-editor';
 import type { BookDimensions } from '@/types/book';
 
 interface BookSettingsDialogProps {
   bookId: string;
+  bookTitle: string;
   category: string;
   dimensions?: BookDimensions;
   borrowedBy?: string;
@@ -29,6 +31,7 @@ interface BookSettingsDialogProps {
 
 export function BookSettingsDialog({
   bookId,
+  bookTitle,
   category,
   dimensions,
   borrowedBy,
@@ -90,6 +93,13 @@ export function BookSettingsDialog({
           <section className="space-y-3">
             <h3 className="text-sm font-medium">表紙画像</h3>
             <BookCoverUploader bookId={bookId} />
+          </section>
+
+          <Separator />
+
+          <section className="space-y-3">
+            <h3 className="text-sm font-medium text-red-900">削除</h3>
+            <BookDeleteEditor bookId={bookId} bookTitle={bookTitle} />
           </section>
         </div>
       </DialogContent>

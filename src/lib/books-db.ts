@@ -266,6 +266,18 @@ export async function deleteAllBooksFromDatabase(): Promise<number> {
   return count ?? 0;
 }
 
+export async function deleteBookFromDatabase(id: string): Promise<boolean> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return false;
+
+  const { error, count } = await supabase
+    .from('books')
+    .delete({ count: 'exact' })
+    .eq('id', id);
+  if (error) throw new Error(`本の削除に失敗しました: ${error.message}`);
+  return (count ?? 0) > 0;
+}
+
 export async function addCategoryToDatabase(
   category: string,
   color?: string | null
