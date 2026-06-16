@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { BackgroundTasksProvider } from '@/components/background-tasks/background-tasks-provider';
+import { ScrollToTop } from '@/components/layout/scroll-to-top';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -19,7 +20,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BackgroundTasksProvider>{children}</BackgroundTasksProvider>
+      <BackgroundTasksProvider>
+        <ScrollToTop />
+        {children}
+      </BackgroundTasksProvider>
     </QueryClientProvider>
   );
 }

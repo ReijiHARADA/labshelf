@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -33,6 +34,15 @@ export function BookDetailDrawer({ book, open, onClose }: BookDetailDrawerProps)
     }
   };
 
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
   return (
     <AnimatePresence>
       {open && book && (
@@ -58,7 +68,7 @@ export function BookDetailDrawer({ book, open, onClose }: BookDetailDrawerProps)
               'bg-background border-l border-border shadow-2xl'
             )}
           >
-            <ScrollArea className="h-full">
+            <ScrollArea key={book.id} className="h-full">
               <div className="p-6">
                 {/* Header */}
                 <div className="flex items-start justify-between mb-6">
