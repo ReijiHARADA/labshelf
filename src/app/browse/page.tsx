@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   SlidersHorizontal,
@@ -31,6 +32,12 @@ import {
 } from '@/components/ui/loading-skeleton';
 import type { Book, SortOption } from '@/types/book';
 import { cn } from '@/lib/utils';
+import {
+  fetchBrowseBooks,
+  fetchCategoryColors,
+  type BrowseBooksData,
+} from '@/lib/browse-data';
+import { useBrowseScrollRestore } from '@/hooks/use-browse-scroll-restore';
 
 type ViewMode = 'grid' | 'list' | 'shelf';
 
@@ -65,6 +72,25 @@ function sortBooks(books: Book[], sortBy: SortOption): Book[] {
 export default function BrowsePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+
+  const booksQuery = useQuery({
+    queryKey: ['books', { limit: 1000 }],
+    queryFn: fetchBrowseBooks,
+  });
+
+  const categoriesQuery = useQuery({
+    queryKey: ['categories'],
+    queryFn: fetchCategoryColors,
+  });
+
+  const allBooks = booksQuery.data?.books ?? [];
+  const categories = booksQuery.data?.categories ?? [];
+  const tags = booksQuery.data?.tags ?? [];
+  const categoryColors = categoriesQuery.data ?? {};
+  const loading = booksQuery.isPending;
+
+  useBrowseScrollRestore(!loading);
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [selectedCategory, setSelectedCategory] = useState(
@@ -77,45 +103,6 @@ export default function BrowsePage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
-  const [allBooks, setAllBooks] = useState<Book[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [categoryColors, setCategoryColors] = useState<Record<string, string>>({});
-  const [tags, setTags] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchBooks = async () => {
-      setLoading(true);
-      try {
-        const [booksRes, categoriesRes] = await Promise.all([
-          fetch('/api/books?limit=1000'),
-          fetch('/api/categories'),
-        ]);
-        if (!booksRes.ok) return;
-        const data = await booksRes.json();
-        setAllBooks(Array.isArray(data.books) ? data.books : []);
-        setCategories(Array.isArray(data?.meta?.categories) ? data.meta.categories : []);
-        setTags(Array.isArray(data?.meta?.tags) ? data.meta.tags : []);
-        if (categoriesRes.ok) {
-          const categoryData = await categoriesRes.json();
-          setCategoryColors(
-            typeof categoryData?.colors === 'object' && categoryData.colors
-              ? categoryData.colors
-              : {}
-          );
-        }
-      } catch {
-        setAllBooks([]);
-        setCategories([]);
-        setCategoryColors({});
-        setTags([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBooks();
-  }, []);
 
   useEffect(() => {
     const filter = searchParams.get('filter');
@@ -192,42 +179,70 @@ export default function BrowsePage() {
                 category={selectedCategory}
                 categoryColor={categoryColors[selectedCategory]}
                 onRenamed={(oldName, newName) => {
-                  setAllBooks((prev) =>
-                    prev.map((book) =>
-                      book.category === oldName ? { ...book, category: newName } : book
-                    )
+                  queryClient.setQueryData<BrowseBooksData>(
+                    ['books', { limit: 1000 }],
+                    (prev) => {
+                      if (!prev) return prev;
+                      return {
+                        ...prev,
+                        books: prev.books.map((book) =>
+                          book.category === oldName
+                            ? { ...book, category: newName }
+                            : book
+                        ),
+                        categories: [
+                          ...new Set(
+                            prev.categories.map((c) => (c === oldName ? newName : c))
+                          ),
+                        ],
+                      };
+                    }
                   );
-                  setCategories((prev) =>
-                    [...new Set(prev.map((c) => (c === oldName ? newName : c)))]
+                  queryClient.setQueryData<Record<string, string>>(
+                    ['categories'],
+                    (prev) => {
+                      const next = { ...(prev ?? {}) };
+                      const oldColor = next[oldName];
+                      delete next[oldName];
+                      if (oldColor) next[newName] = oldColor;
+                      return next;
+                    }
                   );
-                  setCategoryColors((prev) => {
-                    const next = { ...prev };
-                    const oldColor = next[oldName];
-                    delete next[oldName];
-                    if (oldColor) next[newName] = oldColor;
-                    return next;
-                  });
                   setSelectedCategory(newName);
                   const params = new URLSearchParams(searchParams.toString());
                   params.set('category', newName);
                   router.push(`/browse?${params.toString()}`);
                 }}
                 onDeleted={(name, fallbackCategory) => {
-                  setAllBooks((prev) =>
-                    prev.map((book) =>
-                      book.category === name
-                        ? { ...book, category: fallbackCategory }
-                        : book
-                    )
+                  queryClient.setQueryData<BrowseBooksData>(
+                    ['books', { limit: 1000 }],
+                    (prev) => {
+                      if (!prev) return prev;
+                      return {
+                        ...prev,
+                        books: prev.books.map((book) =>
+                          book.category === name
+                            ? { ...book, category: fallbackCategory }
+                            : book
+                        ),
+                        categories: [
+                          ...new Set(
+                            prev.categories
+                              .filter((c) => c !== name)
+                              .concat(fallbackCategory)
+                          ),
+                        ],
+                      };
+                    }
                   );
-                  setCategories((prev) =>
-                    [...new Set(prev.filter((c) => c !== name).concat(fallbackCategory))]
+                  queryClient.setQueryData<Record<string, string>>(
+                    ['categories'],
+                    (prev) => {
+                      const next = { ...(prev ?? {}) };
+                      delete next[name];
+                      return next;
+                    }
                   );
-                  setCategoryColors((prev) => {
-                    const next = { ...prev };
-                    delete next[name];
-                    return next;
-                  });
                   setSelectedCategory(fallbackCategory);
                   const params = new URLSearchParams(searchParams.toString());
                   params.set('category', fallbackCategory);

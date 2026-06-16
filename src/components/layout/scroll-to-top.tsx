@@ -14,6 +14,8 @@ export function ScrollToTop() {
   const pathname = usePathname();
 
   useLayoutEffect(() => {
+    if (!pathname.startsWith('/books/')) return;
+
     scrollWindowToTop();
     const raf = requestAnimationFrame(scrollWindowToTop);
     return () => cancelAnimationFrame(raf);
