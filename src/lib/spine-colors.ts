@@ -203,21 +203,3 @@ export function shouldHaveTexture(bookId: string): boolean {
   }
   return Math.abs(hash) % 3 === 0;
 }
-
-export function shouldHaveLabel(bookId: string): boolean {
-  let hash = 0;
-  for (let i = 0; i < bookId.length; i++) {
-    hash = ((hash << 5) - hash) + bookId.charCodeAt(i);
-  }
-  return Math.abs(hash) % 4 !== 0;
-}
-
-export function getLabelPosition(bookId: string): 'top' | 'bottom' | 'none' {
-  if (!shouldHaveLabel(bookId)) return 'none';
-
-  let hash = 0;
-  for (let i = 0; i < bookId.length; i++) {
-    hash = ((hash << 5) - hash) + bookId.charCodeAt(i);
-  }
-  return Math.abs(hash) % 2 === 0 ? 'top' : 'bottom';
-}

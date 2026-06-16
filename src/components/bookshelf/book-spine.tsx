@@ -10,7 +10,6 @@ import {
   getSpineWidth,
   getSpineHeight,
   shouldHaveTexture,
-  getLabelPosition,
   SPINE_COLOR_OPTIONS,
 } from '@/lib/spine-colors';
 
@@ -36,7 +35,6 @@ export function BookSpine({
   const spineWidth = getSpineWidth(book);
   const spineHeight = getSpineHeight(book);
   const hasTexture = shouldHaveTexture(book.id);
-  const labelPosition = getLabelPosition(book.id);
 
   const displayTitle =
     book.title.length > 20 ? book.title.slice(0, 18) + '…' : book.title;
@@ -130,16 +128,6 @@ export function BookSpine({
           }}
         />
 
-        {labelPosition === 'top' && (
-          <div
-            className="absolute top-3 left-1/2 -translate-x-1/2 w-[70%] h-2"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.25)',
-              boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.1)',
-            }}
-          />
-        )}
-
         <div
           className="spine-text px-0.5 py-2 text-center font-medium leading-tight"
           style={{
@@ -154,16 +142,6 @@ export function BookSpine({
         >
           {displayTitle}
         </div>
-
-        {labelPosition === 'bottom' && (
-          <div
-            className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[70%] h-2"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.25)',
-              boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.1)',
-            }}
-          />
-        )}
       </div>
 
       {book.recommended && (
