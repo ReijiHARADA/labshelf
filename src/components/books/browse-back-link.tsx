@@ -1,24 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { readBrowseReturnUrl } from '@/lib/browse-session';
 
 export function BrowseBackLink() {
-  const [href, setHref] = useState('/browse');
+  const router = useRouter();
 
-  useEffect(() => {
-    setHref(readBrowseReturnUrl());
-  }, []);
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push('/browse');
+  };
 
   return (
-    <Button variant="ghost" size="sm" asChild className="mb-6">
-      <Link href={href}>
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        一覧に戻る
-      </Link>
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="mb-6"
+      onClick={handleBack}
+    >
+      <ArrowLeft className="h-4 w-4 mr-2" />
+      一覧に戻る
     </Button>
   );
 }

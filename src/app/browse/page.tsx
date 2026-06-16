@@ -38,7 +38,7 @@ import {
   type BrowseBooksData,
 } from '@/lib/browse-data';
 import { useBrowseScrollRestore } from '@/hooks/use-browse-scroll-restore';
-import { readInitialBrowseViewMode } from '@/lib/browse-session';
+import { readInitialBrowseViewMode, markBrowseScrollForRestore } from '@/lib/browse-session';
 
 type ViewMode = 'grid' | 'list' | 'shelf';
 
@@ -101,9 +101,7 @@ export default function BrowsePage() {
   const [sortBy, setSortBy] = useState<SortOption>(
     (searchParams.get('sort') as SortOption) || 'latest'
   );
-  const [viewMode, setViewMode] = useState<ViewMode>(() =>
-    readInitialBrowseViewMode(searchParams.toString())
-  );
+  const [viewMode, setViewMode] = useState<ViewMode>(() => readInitialBrowseViewMode());
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
 
@@ -172,6 +170,10 @@ export default function BrowsePage() {
     viewMode,
     contentRef,
   });
+
+  const handleNavigateToDetail = () => {
+    markBrowseScrollForRestore(viewMode);
+  };
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -513,7 +515,11 @@ export default function BrowsePage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <VirtualBookshelf books={filteredBooks} maxRows={10} />
+              <VirtualBookshelf
+                books={filteredBooks}
+                maxRows={10}
+                onBeforeNavigateToDetail={handleNavigateToDetail}
+              />
             </motion.div>
           ) : viewMode === 'list' ? (
             <motion.div
@@ -598,6 +604,7 @@ export default function BrowsePage() {
         book={selectedBook}
         open={!!selectedBook}
         onClose={() => setSelectedBook(null)}
+        onNavigateToDetail={handleNavigateToDetail}
       />
     </div>
   );

@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useRef, type RefObject } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
-  getBrowseUrl,
-  readBrowseSession,
-  saveBrowseSession,
+  consumeBrowseScrollRestore,
+  enableManualScrollRestoration,
+  saveBrowseScrollPosition,
   type BrowseViewMode,
 } from '@/lib/browse-session';
 
@@ -47,25 +47,18 @@ export function useBrowseScrollRestore({
   contentRef,
 }: UseBrowseScrollRestoreOptions) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const search = searchParams.toString();
-  const browseUrl = getBrowseUrl(pathname, search);
   const restoringRef = useRef(false);
 
   useEffect(() => {
-    restoringRef.current = false;
-  }, [browseUrl]);
+    enableManualScrollRestoration();
+  }, []);
 
   useEffect(() => {
     if (pathname !== '/browse') return;
 
     let raf = 0;
     const persist = () => {
-      saveBrowseSession({
-        url: browseUrl,
-        scrollY: window.scrollY,
-        viewMode,
-      });
+      saveBrowseScrollPosition(viewMode);
     };
 
     const handleScroll = () => {
@@ -79,16 +72,15 @@ export function useBrowseScrollRestore({
       persist();
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [pathname, browseUrl, viewMode]);
+  }, [pathname, viewMode]);
 
   useEffect(() => {
     if (!ready || pathname !== '/browse' || restoringRef.current) return;
 
-    const snapshot = readBrowseSession(browseUrl);
-    if (!snapshot || snapshot.scrollY <= 0) return;
+    const targetY = consumeBrowseScrollRestore();
+    if (targetY == null || targetY <= 0) return;
 
     restoringRef.current = true;
-    const targetY = snapshot.scrollY;
     const html = document.documentElement;
     const previousScrollBehavior = html.style.scrollBehavior;
     html.style.scrollBehavior = 'auto';
@@ -154,5 +146,5 @@ export function useBrowseScrollRestore({
     return () => {
       finish();
     };
-  }, [ready, pathname, browseUrl, contentRef]);
+  }, [ready, pathname, contentRef]);
 }

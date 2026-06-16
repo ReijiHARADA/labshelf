@@ -14,12 +14,14 @@ interface VirtualBookshelfProps {
   books: Book[];
   maxRows?: number;
   title?: string;
+  onBeforeNavigateToDetail?: () => void;
 }
 
 export function VirtualBookshelf({
   books,
   maxRows = 3,
   title,
+  onBeforeNavigateToDetail,
 }: VirtualBookshelfProps) {
   const router = useRouter();
   const shelfFrameRef = useRef<HTMLDivElement>(null);
@@ -29,6 +31,11 @@ export function VirtualBookshelf({
   const [viewportWidth, setViewportWidth] = useState(1280);
   const [editMode, setEditMode] = useState(false);
   const [orderedBooks, setOrderedBooks] = useState<Book[]>([]);
+
+  const navigateToDetail = (bookId: string) => {
+    onBeforeNavigateToDetail?.();
+    router.push(`/books/${bookId}`);
+  };
 
   const persistShelfOrder = async (next: Book[]) => {
     await Promise.all(
@@ -317,7 +324,7 @@ export function VirtualBookshelf({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          router.push(`/books/${focusedBook.id}`);
+                          navigateToDetail(focusedBook.id);
                         }}
                         className="block"
                         aria-label={`${focusedBook.title} の詳細を見る`}
@@ -352,7 +359,7 @@ export function VirtualBookshelf({
                           className="rounded-full bg-zinc-950 text-white hover:bg-zinc-800"
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push(`/books/${focusedBook.id}`);
+                            navigateToDetail(focusedBook.id);
                           }}
                         >
                           この本の詳細を見る

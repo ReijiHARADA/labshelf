@@ -25,9 +25,15 @@ interface BookDetailDrawerProps {
   book: Book | null;
   open: boolean;
   onClose: () => void;
+  onNavigateToDetail?: () => void;
 }
 
-export function BookDetailDrawer({ book, open, onClose }: BookDetailDrawerProps) {
+export function BookDetailDrawer({
+  book,
+  open,
+  onClose,
+  onNavigateToDetail,
+}: BookDetailDrawerProps) {
   const copyISBN = () => {
     if (book?.isbn) {
       navigator.clipboard.writeText(book.isbn);
@@ -218,7 +224,10 @@ export function BookDetailDrawer({ book, open, onClose }: BookDetailDrawerProps)
                 {/* Actions */}
                 <div className="flex gap-3">
                   <Button asChild className="flex-1">
-                    <Link href={`/books/${book.id}`}>
+                    <Link
+                      href={`/books/${book.id}`}
+                      onClick={() => onNavigateToDetail?.()}
+                    >
                       詳細ページを見る
                       <ExternalLink className="h-4 w-4 ml-2" />
                     </Link>

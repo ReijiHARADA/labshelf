@@ -7,19 +7,19 @@ export interface BrowseSessionSnapshot {
 }
 
 const SESSION_KEY = 'labshelf:browse-session';
-const RETURN_URL_KEY = 'labshelf:browse-return-url';
+const SCROLL_Y_KEY = 'labshelf:browse-scroll-y';
+const SHOULD_RESTORE_KEY = 'labshelf:browse-should-restore';
 
 export function getBrowseUrl(pathname: string, search: string): string {
   return `${pathname}${search ? `?${search}` : ''}`;
 }
 
-export function saveBrowseSession(snapshot: BrowseSessionSnapshot): void {
-  if (typeof window === 'undefined') return;
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(snapshot));
-  sessionStorage.setItem(RETURN_URL_KEY, snapshot.url);
+function getCurrentBrowseUrl(): string {
+  if (typeof window === 'undefined') return '/browse';
+  return getBrowseUrl('/browse', window.location.search.replace(/^\?/, ''));
 }
 
-export function readBrowseSession(url: string): BrowseSessionSnapshot | null {
+function readLastBrowseSession(): BrowseSessionSnapshot | null {
   if (typeof window === 'undefined') return null;
 
   try {
@@ -27,7 +27,6 @@ export function readBrowseSession(url: string): BrowseSessionSnapshot | null {
     if (!raw) return null;
 
     const snapshot = JSON.parse(raw) as BrowseSessionSnapshot;
-    if (snapshot.url !== url) return null;
     if (!Number.isFinite(snapshot.scrollY)) return null;
     if (!['grid', 'list', 'shelf'].includes(snapshot.viewMode)) return null;
 
@@ -37,12 +36,64 @@ export function readBrowseSession(url: string): BrowseSessionSnapshot | null {
   }
 }
 
-export function readBrowseReturnUrl(): string {
-  if (typeof window === 'undefined') return '/browse';
-  return sessionStorage.getItem(RETURN_URL_KEY) ?? '/browse';
+function getScrollY(): number {
+  return window.scrollY || document.documentElement.scrollTop || 0;
 }
 
-export function readInitialBrowseViewMode(search: string): BrowseViewMode {
-  const session = readBrowseSession(getBrowseUrl('/browse', search));
+export function saveBrowseSession(snapshot: BrowseSessionSnapshot): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(snapshot));
+  sessionStorage.setItem(SCROLL_Y_KEY, String(snapshot.scrollY));
+}
+
+export function saveBrowseScrollPosition(viewMode: BrowseViewMode): void {
+  if (typeof window === 'undefined') return;
+
+  const scrollY = getScrollY();
+  saveBrowseSession({
+    url: getCurrentBrowseUrl(),
+    scrollY,
+    viewMode,
+  });
+}
+
+export function markBrowseScrollForRestore(viewMode: BrowseViewMode): void {
+  if (typeof window === 'undefined') return;
+
+  const session = readLastBrowseSession();
+  const scrollY = Math.max(getScrollY(), session?.scrollY ?? 0);
+
+  saveBrowseSession({
+    url: getCurrentBrowseUrl(),
+    scrollY,
+    viewMode,
+  });
+  sessionStorage.setItem(SHOULD_RESTORE_KEY, '1');
+}
+
+export function consumeBrowseScrollRestore(): number | null {
+  if (typeof window === 'undefined') return null;
+  if (sessionStorage.getItem(SHOULD_RESTORE_KEY) !== '1') return null;
+
+  sessionStorage.removeItem(SHOULD_RESTORE_KEY);
+
+  const fromKey = Number(sessionStorage.getItem(SCROLL_Y_KEY));
+  if (Number.isFinite(fromKey) && fromKey > 0) {
+    return fromKey;
+  }
+
+  const session = readLastBrowseSession();
+  return session && session.scrollY > 0 ? session.scrollY : null;
+}
+
+export function readInitialBrowseViewMode(): BrowseViewMode {
+  const session = readLastBrowseSession();
   return session?.viewMode ?? 'grid';
+}
+
+export function enableManualScrollRestoration(): void {
+  if (typeof window === 'undefined') return;
+  if ('scrollRestoration' in window.history) {
+    window.history.scrollRestoration = 'manual';
+  }
 }
