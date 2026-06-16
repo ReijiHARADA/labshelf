@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
-  Copy,
   Calendar,
   Building2,
   Ruler,
@@ -16,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookCover } from '@/components/bookshelf';
 import { BookSettingsDialog } from '@/components/books/book-settings-dialog';
+import { CopyIsbnButton } from '@/components/books/copy-isbn-button';
 import { getBookById, getRelatedBooks } from '@/lib/books-store';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
 
@@ -156,9 +156,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                         <code className="font-medium bg-muted px-2 py-0.5 rounded text-sm">
                           {book.isbn}
                         </code>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                          <Copy className="h-3.5 w-3.5" />
-                        </Button>
+                        <CopyIsbnButton isbn={book.isbn} />
                       </div>
                     </div>
                   </div>
