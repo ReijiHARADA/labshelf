@@ -38,7 +38,7 @@ import {
   type BrowseBooksData,
 } from '@/lib/browse-data';
 import { useBrowseScrollRestore } from '@/hooks/use-browse-scroll-restore';
-import { readInitialBrowseViewMode, markBrowseScrollForRestore } from '@/lib/browse-session';
+import { readInitialBrowseViewMode, markBrowseScrollForRestore, freezeBrowseScrollPosition, clearFrozenBrowseScrollPosition } from '@/lib/browse-session';
 
 type ViewMode = 'grid' | 'list' | 'shelf';
 
@@ -168,8 +168,19 @@ export default function BrowsePage() {
   useBrowseScrollRestore({
     ready: scrollReady,
     viewMode,
+    drawerOpen: !!selectedBook,
     contentRef,
   });
+
+  const openBookPreview = (book: Book) => {
+    freezeBrowseScrollPosition(viewMode);
+    setSelectedBook(book);
+  };
+
+  const closeBookPreview = () => {
+    setSelectedBook(null);
+    clearFrozenBrowseScrollPosition();
+  };
 
   const handleNavigateToDetail = () => {
     markBrowseScrollForRestore(viewMode);
@@ -538,7 +549,7 @@ export default function BrowsePage() {
                 >
                   <Card
                     className="cursor-pointer hover:shadow-soft transition-shadow"
-                    onClick={() => setSelectedBook(book)}
+                    onClick={() => openBookPreview(book)}
                   >
                     <CardContent className="p-4">
                       <div className="flex gap-4">
@@ -576,7 +587,7 @@ export default function BrowsePage() {
             >
               <JustifiedBookGrid
                 books={filteredBooks}
-                onBookClick={setSelectedBook}
+                onBookClick={openBookPreview}
                 onLayoutReady={() => setGridLayoutReady(true)}
               />
             </motion.div>
@@ -603,7 +614,7 @@ export default function BrowsePage() {
       <BookDetailDrawer
         book={selectedBook}
         open={!!selectedBook}
-        onClose={() => setSelectedBook(null)}
+        onClose={closeBookPreview}
         onNavigateToDetail={handleNavigateToDetail}
       />
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -34,6 +34,8 @@ export function BookDetailDrawer({
   onClose,
   onNavigateToDetail,
 }: BookDetailDrawerProps) {
+  const lockedScrollYRef = useRef(0);
+
   const copyISBN = () => {
     if (book?.isbn) {
       navigator.clipboard.writeText(book.isbn);
@@ -42,10 +44,36 @@ export function BookDetailDrawer({
 
   useEffect(() => {
     if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+
+    lockedScrollYRef.current =
+      window.scrollY || document.documentElement.scrollTop || 0;
+
+    const { style } = document.body;
+    const previous = {
+      position: style.position,
+      top: style.top,
+      left: style.left,
+      right: style.right,
+      width: style.width,
+      overflow: style.overflow,
+    };
+
+    style.position = 'fixed';
+    style.top = `-${lockedScrollYRef.current}px`;
+    style.left = '0';
+    style.right = '0';
+    style.width = '100%';
+    style.overflow = 'hidden';
+
     return () => {
-      document.body.style.overflow = previousOverflow;
+      style.position = previous.position;
+      style.top = previous.top;
+      style.left = previous.left;
+      style.right = previous.right;
+      style.width = previous.width;
+      style.overflow = previous.overflow;
+      window.scrollTo(0, lockedScrollYRef.current);
+      document.documentElement.scrollTop = lockedScrollYRef.current;
     };
   }, [open]);
 

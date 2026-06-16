@@ -38,12 +38,14 @@ function isScrollAtTarget(targetY: number): boolean {
 interface UseBrowseScrollRestoreOptions {
   ready: boolean;
   viewMode: BrowseViewMode;
+  drawerOpen?: boolean;
   contentRef?: RefObject<HTMLElement | null>;
 }
 
 export function useBrowseScrollRestore({
   ready,
   viewMode,
+  drawerOpen = false,
   contentRef,
 }: UseBrowseScrollRestoreOptions) {
   const pathname = usePathname();
@@ -54,7 +56,7 @@ export function useBrowseScrollRestore({
   }, []);
 
   useEffect(() => {
-    if (pathname !== '/browse') return;
+    if (pathname !== '/browse' || drawerOpen) return;
 
     let raf = 0;
     const persist = () => {
@@ -69,10 +71,12 @@ export function useBrowseScrollRestore({
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       cancelAnimationFrame(raf);
-      persist();
+      if (!drawerOpen) {
+        persist();
+      }
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [pathname, viewMode]);
+  }, [pathname, viewMode, drawerOpen]);
 
   useEffect(() => {
     if (!ready || pathname !== '/browse' || restoringRef.current) return;
