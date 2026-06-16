@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -38,6 +38,7 @@ import {
   type BrowseBooksData,
 } from '@/lib/browse-data';
 import { useBrowseScrollRestore } from '@/hooks/use-browse-scroll-restore';
+import { readInitialBrowseViewMode } from '@/lib/browse-session';
 
 type ViewMode = 'grid' | 'list' | 'shelf';
 
@@ -89,8 +90,8 @@ export default function BrowsePage() {
   const tags = booksQuery.data?.tags ?? [];
   const categoryColors = categoriesQuery.data ?? {};
   const loading = booksQuery.isPending;
-
-  useBrowseScrollRestore(!loading);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [gridLayoutReady, setGridLayoutReady] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [selectedCategory, setSelectedCategory] = useState(
@@ -100,7 +101,9 @@ export default function BrowsePage() {
   const [sortBy, setSortBy] = useState<SortOption>(
     (searchParams.get('sort') as SortOption) || 'latest'
   );
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    readInitialBrowseViewMode(searchParams.toString())
+  );
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
 
@@ -153,6 +156,22 @@ export default function BrowsePage() {
 
     return sortBooks(books, sortBy);
   }, [allBooks, searchQuery, selectedCategory, selectedTags, sortBy, searchParams]);
+
+  useEffect(() => {
+    if (viewMode !== 'grid') {
+      setGridLayoutReady(true);
+      return;
+    }
+    setGridLayoutReady(false);
+  }, [viewMode, filteredBooks.length]);
+
+  const scrollReady = !loading && (viewMode !== 'grid' || gridLayoutReady);
+
+  useBrowseScrollRestore({
+    ready: scrollReady,
+    viewMode,
+    contentRef,
+  });
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -470,6 +489,7 @@ export default function BrowsePage() {
         </div>
 
         {/* Results */}
+        <div ref={contentRef}>
         <AnimatePresence mode="wait">
           {loading ? (
             <motion.div
@@ -551,6 +571,7 @@ export default function BrowsePage() {
               <JustifiedBookGrid
                 books={filteredBooks}
                 onBookClick={setSelectedBook}
+                onLayoutReady={() => setGridLayoutReady(true)}
               />
             </motion.div>
           )}
@@ -569,6 +590,7 @@ export default function BrowsePage() {
             </Button>
           </div>
         )}
+        </div>
       </div>
 
       {/* Book detail drawer */}

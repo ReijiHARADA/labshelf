@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft,
   Calendar,
   Building2,
   Ruler,
@@ -15,6 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookCover } from '@/components/bookshelf';
 import { BookSettingsDialog } from '@/components/books/book-settings-dialog';
+import { BrowseBackLink } from '@/components/books/browse-back-link';
 import { CopyIsbnButton } from '@/components/books/copy-isbn-button';
 import { getBookById, getRelatedBooks } from '@/lib/books-store';
 import { ensureBooksLoaded } from '@/lib/sheets-sync';
@@ -49,12 +49,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
         {/* Back button */}
-        <Button variant="ghost" size="sm" asChild className="mb-6">
-          <Link href="/browse">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            一覧に戻る
-          </Link>
-        </Button>
+        <BrowseBackLink />
 
         {/* Main content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

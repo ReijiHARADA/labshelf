@@ -1,79 +1,158 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import {
+  getBrowseUrl,
+  readBrowseSession,
+  saveBrowseSession,
+  type BrowseViewMode,
+} from '@/lib/browse-session';
 
-const STORAGE_PREFIX = 'labshelf:browse-scroll:';
+const SCROLL_TOLERANCE_PX = 2;
+const STABLE_FRAME_COUNT = 3;
+const RESTORE_TIMEOUT_MS = 5000;
 
-function getBrowseScrollKey(pathname: string, search: string) {
-  return `${STORAGE_PREFIX}${pathname}${search ? `?${search}` : ''}`;
+function getMaxScrollY(): number {
+  return Math.max(
+    0,
+    document.documentElement.scrollHeight - window.innerHeight
+  );
 }
 
-function saveBrowseScroll(pathname: string, search: string) {
-  if (typeof window === 'undefined') return;
-  const key = getBrowseScrollKey(pathname, search);
-  sessionStorage.setItem(key, String(window.scrollY));
+function clampScrollY(y: number): number {
+  return Math.min(Math.max(0, y), getMaxScrollY());
 }
 
-function readBrowseScroll(pathname: string, search: string): number | null {
-  if (typeof window === 'undefined') return null;
-  const key = getBrowseScrollKey(pathname, search);
-  const value = sessionStorage.getItem(key);
-  if (value == null) return null;
-  const y = Number(value);
-  return Number.isFinite(y) ? y : null;
+function applyScrollY(y: number): void {
+  const target = clampScrollY(y);
+  window.scrollTo(0, target);
+  document.documentElement.scrollTop = target;
+  document.body.scrollTop = target;
 }
 
-function restoreBrowseScroll(y: number) {
-  window.scrollTo(0, y);
-  document.documentElement.scrollTop = y;
-  document.body.scrollTop = y;
+function isScrollAtTarget(targetY: number): boolean {
+  return Math.abs(window.scrollY - clampScrollY(targetY)) <= SCROLL_TOLERANCE_PX;
 }
 
-export function useBrowseScrollRestore(ready: boolean) {
+interface UseBrowseScrollRestoreOptions {
+  ready: boolean;
+  viewMode: BrowseViewMode;
+  contentRef?: RefObject<HTMLElement | null>;
+}
+
+export function useBrowseScrollRestore({
+  ready,
+  viewMode,
+  contentRef,
+}: UseBrowseScrollRestoreOptions) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const search = searchParams.toString();
-  const restoredRef = useRef(false);
+  const browseUrl = getBrowseUrl(pathname, search);
+  const restoringRef = useRef(false);
+
+  useEffect(() => {
+    restoringRef.current = false;
+  }, [browseUrl]);
 
   useEffect(() => {
     if (pathname !== '/browse') return;
 
     let raf = 0;
+    const persist = () => {
+      saveBrowseSession({
+        url: browseUrl,
+        scrollY: window.scrollY,
+        viewMode,
+      });
+    };
+
     const handleScroll = () => {
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        saveBrowseScroll(pathname, search);
-      });
+      raf = requestAnimationFrame(persist);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       cancelAnimationFrame(raf);
-      saveBrowseScroll(pathname, search);
+      persist();
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [pathname, search]);
+  }, [pathname, browseUrl, viewMode]);
 
-  useLayoutEffect(() => {
-    restoredRef.current = false;
-  }, [pathname, search]);
+  useEffect(() => {
+    if (!ready || pathname !== '/browse' || restoringRef.current) return;
 
-  useLayoutEffect(() => {
-    if (!ready || pathname !== '/browse' || restoredRef.current) return;
+    const snapshot = readBrowseSession(browseUrl);
+    if (!snapshot || snapshot.scrollY <= 0) return;
 
-    const y = readBrowseScroll(pathname, search);
-    if (y == null || y <= 0) {
-      restoredRef.current = true;
-      return;
-    }
+    restoringRef.current = true;
+    const targetY = snapshot.scrollY;
+    const html = document.documentElement;
+    const previousScrollBehavior = html.style.scrollBehavior;
+    html.style.scrollBehavior = 'auto';
 
-    restoreBrowseScroll(y);
-    const raf = requestAnimationFrame(() => {
-      restoreBrowseScroll(y);
-      restoredRef.current = true;
+    let cancelled = false;
+    let raf = 0;
+    let stableFrames = 0;
+    let lastScrollHeight = 0;
+    const startedAt = performance.now();
+
+    const finish = () => {
+      if (cancelled) return;
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      resizeObserver.disconnect();
+      html.style.scrollBehavior = previousScrollBehavior;
+      restoringRef.current = false;
+    };
+
+    const attemptRestore = () => {
+      if (cancelled) return;
+
+      applyScrollY(targetY);
+
+      const scrollHeight = document.documentElement.scrollHeight;
+      const atTarget = isScrollAtTarget(targetY);
+      const heightStable = scrollHeight === lastScrollHeight;
+
+      if (atTarget && heightStable) {
+        stableFrames += 1;
+      } else {
+        stableFrames = 0;
+      }
+
+      lastScrollHeight = scrollHeight;
+
+      if (stableFrames >= STABLE_FRAME_COUNT) {
+        finish();
+        return;
+      }
+
+      if (performance.now() - startedAt >= RESTORE_TIMEOUT_MS) {
+        finish();
+        return;
+      }
+
+      raf = requestAnimationFrame(attemptRestore);
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      stableFrames = 0;
+      attemptRestore();
     });
 
-    return () => cancelAnimationFrame(raf);
-  }, [ready, pathname, search]);
+    resizeObserver.observe(document.documentElement);
+    if (contentRef?.current) {
+      resizeObserver.observe(contentRef.current);
+    }
+
+    applyScrollY(targetY);
+    raf = requestAnimationFrame(attemptRestore);
+
+    return () => {
+      finish();
+    };
+  }, [ready, pathname, browseUrl, contentRef]);
 }

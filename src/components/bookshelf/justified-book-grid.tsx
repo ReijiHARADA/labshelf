@@ -12,12 +12,14 @@ interface JustifiedBookGridProps {
   books: Book[];
   onBookClick?: (book: Book) => void;
   targetRowHeight?: number;
+  onLayoutReady?: () => void;
 }
 
 export function JustifiedBookGrid({
   books,
   onBookClick,
   targetRowHeight = 190,
+  onLayoutReady,
 }: JustifiedBookGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -46,6 +48,12 @@ export function JustifiedBookGrid({
       { targetRowHeight, gap: 12 }
     );
   }, [books, containerWidth, targetRowHeight, ratios]);
+
+  useEffect(() => {
+    if (containerWidth > 0 && rows.length > 0) {
+      onLayoutReady?.();
+    }
+  }, [containerWidth, rows.length, onLayoutReady]);
 
   return (
     <div ref={containerRef} className="space-y-3">
