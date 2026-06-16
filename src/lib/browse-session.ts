@@ -50,6 +50,21 @@ export function getScrollY(): number {
   return window.scrollY || document.documentElement.scrollTop || 0;
 }
 
+export function scrollToInstant(y: number): void {
+  if (typeof window === 'undefined') return;
+
+  const html = document.documentElement;
+  const previousScrollBehavior = html.style.scrollBehavior;
+  html.style.scrollBehavior = 'auto';
+
+  const target = Math.max(0, y);
+  window.scrollTo(0, target);
+  html.scrollTop = target;
+  document.body.scrollTop = target;
+
+  html.style.scrollBehavior = previousScrollBehavior;
+}
+
 export function readFrozenBrowseScrollY(): number | null {
   if (typeof window === 'undefined') return null;
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -19,6 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BookCover } from './book-cover';
 import type { Book } from '@/types/book';
+import { scrollToInstant } from '@/lib/browse-session';
 import { cn } from '@/lib/utils';
 
 interface BookDetailDrawerProps {
@@ -42,7 +43,7 @@ export function BookDetailDrawer({
     }
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
 
     lockedScrollYRef.current =
@@ -66,14 +67,14 @@ export function BookDetailDrawer({
     style.overflow = 'hidden';
 
     return () => {
+      const scrollY = lockedScrollYRef.current;
       style.position = previous.position;
       style.top = previous.top;
       style.left = previous.left;
       style.right = previous.right;
       style.width = previous.width;
       style.overflow = previous.overflow;
-      window.scrollTo(0, lockedScrollYRef.current);
-      document.documentElement.scrollTop = lockedScrollYRef.current;
+      scrollToInstant(scrollY);
     };
   }, [open]);
 
