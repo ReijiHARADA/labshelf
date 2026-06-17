@@ -438,22 +438,10 @@ export default function ScanPage() {
                 </div>
               )}
               {status.type === 'running' && (
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <p>
-                    バーコードを枠内に入れてください。読み取った本はそのまま次をスキャンできます。
-                    {lastRaw ? `（直近: ${lastRaw}）` : ''}
-                  </p>
-                  {pendingCount > 0 ? (
-                    <p className="text-amber-800 dark:text-amber-200">
-                      バックグラウンド登録中: {pendingCount} 件
-                    </p>
-                  ) : null}
-                  {recentIsbn ? (
-                    <p className="font-mono text-xs text-foreground/80">
-                      直近キュー: {recentIsbn}
-                    </p>
-                  ) : null}
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  バーコードを枠内に入れてください。読み取った本はそのまま次をスキャンできます。
+                  {lastRaw ? `（直近: ${lastRaw}）` : ''}
+                </p>
               )}
               {magazineDraft ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3 text-amber-950">
