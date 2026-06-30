@@ -1,4 +1,5 @@
 import type { Book } from '@/types/book';
+import { parsePublicationDate } from '@/lib/publication-date';
 
 function normalizeISBN(isbn: string): string {
   return isbn.replace(/[-\s]/g, '');
@@ -14,12 +15,6 @@ function extractTagValue(block: string, tag: string): string | undefined {
   const match = block.match(re);
   if (!match?.[1]) return undefined;
   return match[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() || undefined;
-}
-
-function parsePublishedYear(value?: string): number {
-  if (!value) return new Date().getFullYear();
-  const match = value.match(/(\d{4})/);
-  return match ? Number.parseInt(match[1], 10) : new Date().getFullYear();
 }
 
 /**
@@ -55,13 +50,15 @@ export async function fetchBookInfoFromNDL(isbn: string): Promise<Partial<Book> 
     const publisher = extractTagValue(item, 'dc:publisher');
     const date =
       extractTagValue(item, 'dcterms:issued') || extractTagValue(item, 'dc:date');
+    const publication = parsePublicationDate(date);
 
     return {
       isbn: normalizedISBN,
       title,
       author: author || '',
       publisher: publisher || '',
-      publishedYear: parsePublishedYear(date),
+      publishedDate: publication.publishedDate,
+      publishedYear: publication.publishedYear ?? new Date().getFullYear(),
     };
   } catch (error) {
     console.error('NDL OpenSearch fetch error:', error);

@@ -33,6 +33,7 @@ function toBookFromApi(code: string, apiData: Partial<Book> | null): Book | null
       subtitle: apiData.subtitle,
       author: apiData.author || '不明',
       publisher: apiData.publisher || '',
+      publishedDate: apiData.publishedDate,
       publishedYear: apiData.publishedYear || new Date().getFullYear(),
       category: '未分類',
       tags: [],

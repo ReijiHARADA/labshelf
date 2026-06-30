@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/loading-skeleton';
 import type { Book, SortOption } from '@/types/book';
 import { cn } from '@/lib/utils';
+import { publicationTimestamp } from '@/lib/publication-date';
 import {
   fetchBrowseBooks,
   fetchCategoryColors,
@@ -47,7 +48,7 @@ const sortOptions: { value: SortOption; label: string }[] = [
   { value: 'title', label: 'タイトル順' },
   { value: 'author', label: '著者順' },
   { value: 'popular', label: '人気順' },
-  { value: 'year', label: '出版年順' },
+  { value: 'year', label: '出版日順' },
 ];
 
 function sortBooks(books: Book[], sortBy: SortOption): Book[] {
@@ -64,7 +65,11 @@ function sortBooks(books: Book[], sortBy: SortOption): Book[] {
     case 'popular':
       return sorted.sort((a, b) => b.popularityScore - a.popularityScore);
     case 'year':
-      return sorted.sort((a, b) => b.publishedYear - a.publishedYear);
+      return sorted.sort(
+        (a, b) =>
+          publicationTimestamp(b.publishedDate, b.publishedYear) -
+          publicationTimestamp(a.publishedDate, a.publishedYear)
+      );
     default:
       return sorted;
   }
@@ -99,7 +104,7 @@ export default function BrowsePage() {
   );
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<SortOption>(
-    (searchParams.get('sort') as SortOption) || 'latest'
+    (searchParams.get('sort') as SortOption) || 'year'
   );
   const [viewMode, setViewMode] = useState<ViewMode>(() => readInitialBrowseViewMode());
   const [showFilters, setShowFilters] = useState(false);
@@ -190,7 +195,7 @@ export default function BrowsePage() {
     setSearchQuery('');
     setSelectedCategory('');
     setSelectedTags([]);
-    setSortBy('latest');
+    setSortBy('year');
     router.push('/browse');
   };
 
@@ -447,7 +452,11 @@ export default function BrowsePage() {
         {/* Toolbar */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
-            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+            <Select
+              items={sortOptions}
+              value={sortBy}
+              onValueChange={(v) => setSortBy(v as SortOption)}
+            >
               <SelectTrigger className="w-[140px] h-9">
                 <SelectValue />
               </SelectTrigger>

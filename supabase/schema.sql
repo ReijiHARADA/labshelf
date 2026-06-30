@@ -5,6 +5,7 @@ create table if not exists public.books (
   subtitle text,
   author text not null,
   publisher text not null default '',
+  published_date text,
   published_year integer not null,
   category text not null default '未分類',
   tags text[] not null default '{}',

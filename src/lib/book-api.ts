@@ -1,6 +1,7 @@
 import type { Book } from '@/types/book';
 import { fetchAmazonCoverImage, isbn13ToIsbn10 } from '@/lib/amazon-cover';
 import { fetchBookInfoFromNDL } from '@/lib/ndl-api';
+import { parsePublicationDate } from '@/lib/publication-date';
 
 interface GoogleBooksVolume {
   id: string;
@@ -70,6 +71,11 @@ interface OpenBDResponse {
       }>;
     };
   };
+  hanmoto?: {
+    datekoukai?: string;
+    datecreated?: string;
+    datemodified?: string;
+  };
 }
 
 function normalizeISBN(isbn: string): string {
@@ -121,13 +127,7 @@ export async function fetchBookInfoFromGoogleBooks(isbn: string): Promise<Partia
     
     const volume = data.items[0].volumeInfo;
     
-    let publishedYear = new Date().getFullYear();
-    if (volume.publishedDate) {
-      const match = volume.publishedDate.match(/(\d{4})/);
-      if (match) {
-        publishedYear = parseInt(match[1], 10);
-      }
-    }
+    const publication = parsePublicationDate(volume.publishedDate);
     
     const imageLink =
       volume.imageLinks?.thumbnail ||
@@ -139,7 +139,8 @@ export async function fetchBookInfoFromGoogleBooks(isbn: string): Promise<Partia
       subtitle: volume.subtitle,
       author: volume.authors?.join(', ') || '',
       publisher: volume.publisher || '',
-      publishedYear,
+      publishedDate: publication.publishedDate,
+      publishedYear: publication.publishedYear ?? new Date().getFullYear(),
       description: volume.description,
       coverImageUrl: imageLink?.replace('http:', 'https:'),
       tags: volume.categories || [],
@@ -181,13 +182,9 @@ export async function fetchBookInfoFromOpenBD(isbn: string): Promise<Partial<Boo
       return null;
     }
     
-    let publishedYear = new Date().getFullYear();
-    if (summary.pubdate) {
-      const match = summary.pubdate.match(/(\d{4})/);
-      if (match) {
-        publishedYear = parseInt(match[1], 10);
-      }
-    }
+    const publication = parsePublicationDate(
+      summary.pubdate || book.hanmoto?.datekoukai || book.hanmoto?.datecreated
+    );
     
     let description: string | undefined;
     const textContents = onix?.CollateralDetail?.TextContent;
@@ -220,7 +217,8 @@ export async function fetchBookInfoFromOpenBD(isbn: string): Promise<Partial<Boo
       subtitle: onix?.DescriptiveDetail?.TitleDetail?.TitleElement?.Subtitle?.content,
       author: summary.author || '',
       publisher: summary.publisher || '',
-      publishedYear,
+      publishedDate: publication.publishedDate,
+      publishedYear: publication.publishedYear ?? new Date().getFullYear(),
       description,
       coverImageUrl: summary.cover,
       dimensions: {
@@ -284,6 +282,12 @@ export async function fetchBookInfo(
 
   const primary = openBDResult ?? googleResult ?? ndlResult ?? {};
   const fallback = googleResult ?? openBDResult ?? ndlResult ?? {};
+  const mergedPublishedDate = primary.publishedDate || fallback.publishedDate;
+  const mergedPublishedYear =
+    primary.publishedYear ||
+    fallback.publishedYear ||
+    parsePublicationDate(mergedPublishedDate).publishedYear ||
+    new Date().getFullYear();
 
   return {
     isbn: normalizedISBN,
@@ -291,7 +295,8 @@ export async function fetchBookInfo(
     subtitle: primary.subtitle || fallback.subtitle,
     author: primary.author || fallback.author || '',
     publisher: primary.publisher || fallback.publisher || '',
-    publishedYear: primary.publishedYear || fallback.publishedYear || new Date().getFullYear(),
+    publishedDate: mergedPublishedDate,
+    publishedYear: mergedPublishedYear,
     description: primary.description || fallback.description,
     // 日本語書籍は OpenBD/Google の表紙が低解像度なため Amazon を優先。未取得時のみ API 表紙を使う。
     coverImageUrl: amazonCover || apiCover || undefined,

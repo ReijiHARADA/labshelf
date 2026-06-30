@@ -8,6 +8,7 @@ type DbBookRow = {
   subtitle: string | null;
   author: string;
   publisher: string;
+  published_date: string | null;
   published_year: number;
   category: string;
   tags: string[] | null;
@@ -50,6 +51,7 @@ function toDbRow(book: Book): DbBookRow {
     subtitle: book.subtitle ?? null,
     author: book.author,
     publisher: book.publisher,
+    published_date: book.publishedDate ?? null,
     published_year: book.publishedYear,
     category: book.category,
     tags: book.tags,
@@ -86,6 +88,7 @@ function fromDbRow(row: DbBookRow): Book {
     subtitle: row.subtitle ?? undefined,
     author: row.author,
     publisher: row.publisher,
+    publishedDate: row.published_date ?? undefined,
     publishedYear: row.published_year,
     category: row.category,
     tags: row.tags ?? [],
@@ -134,6 +137,7 @@ function stripDimensionsColumns(row: DbBookRow): Omit<
   | 'shelf_order'
   | 'shelf_orientation'
   | 'spine_color'
+  | 'published_date'
 > {
   const {
     physical_height_mm: _h,
@@ -145,6 +149,7 @@ function stripDimensionsColumns(row: DbBookRow): Omit<
     shelf_order: _so,
     shelf_orientation: _sr,
     spine_color: _sc,
+    published_date: _pd,
     ...rest
   } = row;
   return rest;
@@ -168,7 +173,8 @@ export async function upsertBooksToDatabase(books: Book[]): Promise<void> {
     error.message.includes('dimensions_manual') ||
     error.message.includes('shelf_order') ||
     error.message.includes('shelf_orientation') ||
-    error.message.includes('spine_color')
+    error.message.includes('spine_color') ||
+    error.message.includes('published_date')
   ) {
     const compactRows = rows.map((row) => stripDimensionsColumns(row));
     const { error: retryError } = await supabase

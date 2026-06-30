@@ -15,6 +15,8 @@ export interface Book {
   subtitle?: string;
   author: string;
   publisher: string;
+  /** ISO-like string: YYYY / YYYY-MM / YYYY-MM-DD */
+  publishedDate?: string;
   publishedYear: number;
   category: string;
   tags: string[];

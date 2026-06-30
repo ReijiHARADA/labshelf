@@ -1,0 +1,7 @@
+# Minimal config for remote migrations via Supabase CLI.
+# Requires: supabase login (or SUPABASE_ACCESS_TOKEN env var)
+
+project_id = "kzzyuexcyytqlbqqmhcj"
+
+[db]
+major_version = 15
