@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Book } from '@/types/book';
-import { Book3DCard, getBookVisualSize } from './book-3d-card';
+import { Book3DCard, getBookVisualSize, SPINE_WIDTH } from './book-3d-card';
 import {
   getCoverAspectRatio,
   loadCoverAspectRatio,
@@ -18,46 +18,58 @@ import {
 } from '@/lib/cover-aspect-ratio';
 
 // ---------------------------------------------------------------------------
-// Constants
+// Design: 全書籍が68〜80度の急角度で密集する「3Dレール」
+//
+// ・中央の本も正面表示しない（ Cover Flow 的な0度表示なし）
+// ・左グループ: rotateY 負 (右面/小口が見える方向)
+// ・右グループ: rotateY 正 (左面/スパインが見える方向)
+// ・active 本はわずかに小さい角度（68deg）でほんの少し「開いて」いる
+// ・scale 差は最大 1.0〜1.06 程度
 // ---------------------------------------------------------------------------
 
-/** 中心から各ステップの水平間隔 (px) */
-const STEP = 130;
+/** 本と本のピッチ (px)。急角度で見かけ幅が小さいため密に詰める */
+const PITCH = 110;
 
-/** 1回のスナップに必要な最小移動量 (px) */
-const SNAP_THRESHOLD = 30;
+/** レンダリングする最大オフセット数（±N冊のみ DOM に持つ） */
+const RENDER_RANGE = 7;
+
+/** perspective (px) */
+const PERSPECTIVE_PX = 1000;
+
+/** スナップに必要な最小移動量 (px) */
+const SNAP_THRESHOLD = 28;
 
 /** 連続スナップ防止クールダウン (ms) */
-const SNAP_COOLDOWN = 420;
-
-/** レンダリングする最大オフセット（中心±N冊のみ DOM に持つ） */
-const RENDER_RANGE = 5;
-
-/** perspective (px) — 小さいほど3D感が強い */
-const PERSPECTIVE_PX = 900;
+const SNAP_COOLDOWN = 400;
 
 // ---------------------------------------------------------------------------
-// Visual params per offset
+// Offset → 視覚パラメータ
 // ---------------------------------------------------------------------------
 
-// offset 0→1→2→3→4+ に対する視覚パラメータ（参考画像に近づける）
-const PARAMS_TABLE = [
-  { angle: 0,  z: 0,    scale: 1,    opacity: 1    },  // 0: active
-  { angle: 62, z: -35,  scale: 0.92, opacity: 0.92 },  // 1
-  { angle: 70, z: -90,  scale: 0.80, opacity: 0.75 },  // 2
-  { angle: 74, z: -140, scale: 0.68, opacity: 0.55 },  // 3
-  { angle: 76, z: -180, scale: 0.57, opacity: 0.35 },  // 4+
-] as const;
-
+/**
+ * 全書籍を急角度で並べる設計:
+ *  - active (0):  rotateY = 68  (スパイン側が少し見える)
+ *  - left  (負):  rotateY = -(70〜80)  (左側書籍は逆向き)
+ *  - right (正):  rotateY = +(70〜80)
+ *  - scale/opacity の変化を最小限に抑え、遠近感はperspectiveと translateZ に任せる
+ */
 function getOffsetParams(offset: number) {
-  const abs = Math.min(Math.abs(offset), PARAMS_TABLE.length - 1);
-  const sign = Math.sign(offset) || 1;
-  const p = PARAMS_TABLE[abs]!;
+  const abs = Math.abs(offset);
+  const sign = Math.sign(offset) === 0 ? 1 : Math.sign(offset);
+
+  // 角度テーブル: offset 0→1→2→3→4+
+  const ANGLES  = [68, 72, 75, 78, 80] as const;
+  const DEPTHS  = [30, 10, -10, -25, -40] as const; // translateZ (px)
+  const SCALES  = [1.06, 1.01, 0.98, 0.96, 0.94] as const;
+  const OPACITY = [1,  0.88, 0.72, 0.56, 0.4] as const;
+
+  const idx = Math.min(abs, ANGLES.length - 1) as 0 | 1 | 2 | 3 | 4;
+
   return {
-    rotateY:    p.angle * sign,
-    translateZ: p.z,
-    scale:      p.scale,
-    opacity:    p.opacity,
+    rotateY:    ANGLES[idx] * sign,
+    translateZ: DEPTHS[idx],
+    scale:      SCALES[idx],
+    opacity:    OPACITY[idx],
   };
 }
 
@@ -66,13 +78,17 @@ function getOffsetParams(offset: number) {
 // ---------------------------------------------------------------------------
 
 type RatioMap = Record<string, number>;
-function ratioReducer(state: RatioMap, { id, ratio }: { id: string; ratio: number }): RatioMap {
+
+function ratioReducer(
+  state: RatioMap,
+  { id, ratio }: { id: string; ratio: number }
+): RatioMap {
   if (state[id] === ratio) return state;
   return { ...state, [id]: ratio };
 }
 
 // ---------------------------------------------------------------------------
-// CoverFlowBookshelf
+// CoverFlowBookshelf（実態は SpineRail / 3D Book Rail）
 // ---------------------------------------------------------------------------
 
 interface CoverFlowBookshelfProps {
@@ -102,7 +118,7 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
     setActiveIndex((p) => Math.min(p, books.length - 1));
   }, [books.length]);
 
-  // コンテナ幅を追跡
+  // コンテナ幅
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -112,7 +128,7 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
     return () => ro.disconnect();
   }, []);
 
-  // アスペクト比の非同期読み込み
+  // アスペクト比
   const [ratios, dispatchRatio] = useReducer(ratioReducer, {} as RatioMap);
   useEffect(() => {
     for (const book of books) {
@@ -132,62 +148,50 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
   );
 
   // ---------------------------------------------------------------------------
-  // 各本の x 座標（固定ステップ）
+  // Stage offset
+  // ステージ全体を translateX して activeBook の中心を画面中央に合わせる
   // ---------------------------------------------------------------------------
 
-  const getX = useCallback(
-    (i: number) => (i - activeIndex) * STEP,
-    [activeIndex]
-  );
-
-  // ステージの translateX — 画面中央に active book を来させる
   const stageOffsetX = containerWidth / 2;
 
   // ---------------------------------------------------------------------------
   // Drag / pointer
   // ---------------------------------------------------------------------------
 
-  const dragState = useRef({
-    active: false,
-    startX: 0,
-    moved: false,
-  });
+  const drag = useRef({ active: false, startX: 0, moved: false });
 
   const snap = useCallback(
-    (direction: 1 | -1) => {
-      setActiveIndex((p) => Math.max(0, Math.min(books.length - 1, p + direction)));
+    (dir: 1 | -1) => {
+      setActiveIndex((p) => Math.max(0, Math.min(books.length - 1, p + dir)));
     },
     [books.length]
   );
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
-    dragState.current = { active: true, startX: e.clientX, moved: false };
+    drag.current = { active: true, startX: e.clientX, moved: false };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }, []);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragState.current.active) return;
-    if (Math.abs(e.clientX - dragState.current.startX) > 5) {
-      dragState.current.moved = true;
-    }
+    if (!drag.current.active) return;
+    if (Math.abs(e.clientX - drag.current.startX) > 6) drag.current.moved = true;
   }, []);
 
   const onPointerUp = useCallback(
     (e: React.PointerEvent) => {
-      if (!dragState.current.active) return;
-      const dx = e.clientX - dragState.current.startX;
-      dragState.current.active = false;
-      if (Math.abs(dx) < SNAP_THRESHOLD) return;
-      snap(dx < 0 ? 1 : -1);
+      if (!drag.current.active) return;
+      const dx = e.clientX - drag.current.startX;
+      drag.current.active = false;
+      if (Math.abs(dx) >= SNAP_THRESHOLD) snap(dx < 0 ? 1 : -1);
     },
     [snap]
   );
 
-  // ドラッグ中のクリックを無効化
+  // ドラッグ後の誤クリックを防ぐ
   const onContainerClick = useCallback((e: React.MouseEvent) => {
-    if (dragState.current.moved) {
+    if (drag.current.moved) {
       e.stopPropagation();
-      dragState.current.moved = false;
+      drag.current.moved = false;
     }
   }, []);
 
@@ -199,34 +203,21 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
   const onTouchEnd = useCallback(
     (e: React.TouchEvent) => {
       const dx = (e.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
-      if (Math.abs(dx) < SNAP_THRESHOLD) return;
-      snap(dx < 0 ? 1 : -1);
+      if (Math.abs(dx) >= SNAP_THRESHOLD) snap(dx < 0 ? 1 : -1);
     },
     [snap]
   );
 
-  // ---------------------------------------------------------------------------
-  // Wheel / trackpad
-  // ---------------------------------------------------------------------------
-
+  // wheel / trackpad
   const lastSnapAt = useRef(0);
-
   const onWheel = useCallback(
     (e: WheelEvent) => {
-      // 縦スクロールは無視
-      if (Math.abs(e.deltaY) > Math.abs(e.deltaX) * 1.5) return;
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX) * 1.2) return;
       e.preventDefault();
-
       const now = Date.now();
       if (now - lastSnapAt.current < SNAP_COOLDOWN) return;
-
-      if (e.deltaX > 25) {
-        snap(1);
-        lastSnapAt.current = now;
-      } else if (e.deltaX < -25) {
-        snap(-1);
-        lastSnapAt.current = now;
-      }
+      if (e.deltaX > 20) { snap(1); lastSnapAt.current = now; }
+      else if (e.deltaX < -20) { snap(-1); lastSnapAt.current = now; }
     },
     [snap]
   );
@@ -257,20 +248,19 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
 
   if (books.length === 0) return null;
 
-  const maxH = Math.max(...sizes.map((s) => s.height), 300);
-  const stageH = maxH + 40;
-  const dur = reduceMotion ? '0ms' : '400ms';
+  const maxH = Math.max(...sizes.map((s) => s.height), 280);
+  const stageH = maxH + 20;
+  const dur = reduceMotion ? '0ms' : '380ms';
   const ease = 'cubic-bezier(0.25,0.8,0.25,1)';
 
-  // 見えない遠方の本は DOM から除外してパフォーマンスを保つ
   const renderFrom = Math.max(0, activeIndex - RENDER_RANGE);
-  const renderTo = Math.min(books.length - 1, activeIndex + RENDER_RANGE);
+  const renderTo   = Math.min(books.length - 1, activeIndex + RENDER_RANGE);
 
   return (
     <div
       ref={containerRef}
       role="region"
-      aria-label="書籍カバーフロー"
+      aria-label="書籍レール"
       tabIndex={0}
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
@@ -285,45 +275,53 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
         userSelect: 'none',
         touchAction: 'pan-y',
         cursor: 'grab',
-        /* perspective は必ずここ1か所のみ */
+        // perspective は必ずここ1か所
         perspective: PERSPECTIVE_PX,
-        perspectiveOrigin: '50% 42%',
+        perspectiveOrigin: '50% 48%',
       }}
     >
-      {/* Stage */}
+      {/* Stage: 全本の絶対配置コンテナ */}
       <div
         style={{
           position: 'relative',
           height: stageH,
           transformStyle: 'preserve-3d',
+          // activeBook の中心を画面中央へ
           transform: `translateX(${stageOffsetX}px)`,
           transition: `transform ${dur} ${ease}`,
         }}
       >
         {books.map((book, i) => {
-          // 範囲外はレンダリングしない
           if (i < renderFrom || i > renderTo) return null;
 
           const offset = i - activeIndex;
           const { rotateY, translateZ, scale, opacity } = getOffsetParams(offset);
-          const sz = sizes[i] ?? { width: 230, height: 340 };
-          const x = getX(i);
+          const sz = sizes[i] ?? { width: 220, height: 320 };
+
+          // x 座標: 固定ピッチで activeIndex=0 を基準に累積
+          // ただし各本の見かけ幅は急角度のため実際の幅より狭い
+          // ここでは PITCH (固定) を使い、本の幅差は書籍内部の3D回転で吸収する
+          const x = offset * PITCH;
 
           return (
             <div
               key={book.id}
               style={{
                 position: 'absolute',
-                top: (stageH - 40 - sz.height) / 2,
-                // Book3DCard の幅は sz.width。スパインは left:-(S/2) の overflow なので
-                // 配置の中心は sz.width / 2 を基準にする
+                top: (stageH - sz.height) / 2,
+                // Book3DCard の名目上の幅は sz.width
+                // スパインは left:-(S/2) のはみ出しなので sz.width/2 だけずらす
                 left: x - sz.width / 2,
                 width: sz.width,
                 height: sz.height,
                 transformStyle: 'preserve-3d',
                 transform: `translateZ(${translateZ}px)`,
-                transition: `transform ${dur} ${ease}`,
+                transition: reduceMotion
+                  ? 'none'
+                  : `transform ${dur} ${ease}`,
                 zIndex: 100 - Math.abs(offset),
+                // スパインのはみ出し（±SPINE_WIDTH/2）を隠さない
+                overflow: 'visible',
               }}
             >
               <Book3DCard
@@ -332,12 +330,14 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
                 scale={scale}
                 opacity={opacity}
                 isActive={i === activeIndex}
-                transitionMs={400}
+                transitionMs={380}
                 reduceMotion={reduceMotion}
                 onClick={() => {
                   if (i !== activeIndex) {
+                    // 非アクティブ本をクリック→そちらをアクティブに
                     setActiveIndex(i);
                   } else {
+                    // アクティブ本をクリック→詳細ページへ
                     router.push(`/books/${book.id}`);
                   }
                 }}
@@ -347,78 +347,27 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
         })}
       </div>
 
-      {/* ドットインジケーター */}
-      <div
-        aria-hidden
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: 5,
-          paddingTop: 14,
-          paddingBottom: 2,
-          maxWidth: '100%',
-          overflow: 'hidden',
-        }}
-      >
-        {/* 最大30個まで表示 */}
-        {books.slice(0, 30).map((book, i) => (
-          <button
-            key={book.id}
-            onClick={(e) => { e.stopPropagation(); setActiveIndex(i); }}
-            aria-label={`${book.title}を表示`}
-            style={{
-              width: i === activeIndex ? 18 : 5,
-              height: 5,
-              borderRadius: 3,
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              backgroundColor: i === activeIndex ? 'var(--primary)' : 'currentColor',
-              opacity: i === activeIndex ? 1 : 0.2,
-              transition: reduceMotion ? 'none' : `width 280ms ${ease}, opacity 200ms ease`,
-              flexShrink: 0,
-            }}
-          />
-        ))}
-        {books.length > 30 && (
-          <span style={{ fontSize: 10, opacity: 0.4, paddingLeft: 4 }}>
-            …{books.length - 30}
-          </span>
-        )}
-      </div>
-
-      {/* アクティブ本のタイトル表示 */}
+      {/* ──── 極小インジケーター（本数のみ、目立たせない）────
+           ページネーションドットは省略。代わりに現在位置を小さく表示する */}
       <div
         aria-live="polite"
-        style={{ textAlign: 'center', marginTop: 10, minHeight: 40, padding: '0 24px' }}
+        style={{
+          textAlign: 'center',
+          marginTop: 10,
+          minHeight: 28,
+          opacity: 0.5,
+        }}
       >
-        {books[activeIndex] && (
-          <>
-            <p style={{
-              fontWeight: 600,
-              fontSize: 14,
-              lineHeight: 1.3,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}>
-              {books[activeIndex]!.title}
-            </p>
-            {books[activeIndex]!.author && (
-              <p style={{
-                fontSize: 12,
-                opacity: 0.55,
-                marginTop: 2,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}>
-                {books[activeIndex]!.author}
-              </p>
-            )}
-          </>
-        )}
+        <p style={{ fontSize: 11 }}>
+          {activeIndex + 1} / {books.length}
+          {books[activeIndex] && (
+            <span style={{ marginLeft: 8, fontWeight: 500 }}>
+              {books[activeIndex]!.title.length > 28
+                ? books[activeIndex]!.title.slice(0, 27) + '…'
+                : books[activeIndex]!.title}
+            </span>
+          )}
+        </p>
       </div>
     </div>
   );
