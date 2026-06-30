@@ -1,10 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
 import { Sparkles, Clock, Grid3X3, Layers } from 'lucide-react';
-import { VirtualBookshelf } from '@/components/bookshelf';
-import { getUniqueCategoryColors } from '@/lib/book-category-colors';
+import { CoverFlowBookshelf } from '@/components/bookshelf/cover-flow-bookshelf';
 import { cn } from '@/lib/utils';
 import type { Book } from '@/types/book';
 
@@ -33,7 +31,7 @@ export function BookshelfSection({
   const [viewMode, setViewMode] = useState<ViewMode>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>(categories[0] || '');
 
-  const getDisplayBooks = () => {
+  const displayBooks = (() => {
     switch (viewMode) {
       case 'recommended':
         return recommendedBooks;
@@ -44,21 +42,12 @@ export function BookshelfSection({
       default:
         return allBooks;
     }
-  };
-
-  const displayBooks = getDisplayBooks();
-  const categoryLegend = useMemo(
-    () =>
-      getUniqueCategoryColors(displayBooks.map((book) => book.category)).sort((a, b) =>
-        a.category.localeCompare(b.category, 'ja')
-      ),
-    [displayBooks]
-  );
+  })();
 
   return (
     <section className="pt-4 pb-8">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Toolbar */}
+        {/* フィルタータブ */}
         <div className="mb-6">
           <div className="flex flex-wrap items-center gap-2">
             {viewModes.map((mode) => {
@@ -80,7 +69,7 @@ export function BookshelfSection({
               );
             })}
 
-            {/* Category sub-filter */}
+            {/* カテゴリサブフィルター */}
             {viewMode === 'category' && (
               <>
                 <div className="w-px h-5 bg-border mx-1" />
@@ -103,57 +92,10 @@ export function BookshelfSection({
           </div>
         </div>
 
-        {/* Bookshelf */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          <VirtualBookshelf
-            books={displayBooks}
-            maxRows={5}
-          />
-        </motion.div>
+        {/* 3Dカバーフロー */}
+        <CoverFlowBookshelf books={displayBooks} />
 
-        <div className="mt-4 space-y-2">
-          <p className="text-xs text-muted-foreground">{displayBooks.length}冊</p>
-
-          {categoryLegend.length > 0 && (
-            <details className="group text-xs">
-              <summary className="cursor-pointer list-none text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
-                <span className="inline-flex items-center gap-1">
-                  カテゴリ凡例
-                  <span className="text-[10px] opacity-70 group-open:rotate-180 transition-transform">
-                    ▼
-                  </span>
-                </span>
-              </summary>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {categoryLegend.map(({ category, color }) => (
-                  <span
-                    key={category}
-                    className="inline-flex items-center gap-1.5 rounded-full border px-2 py-1"
-                    style={{
-                      backgroundColor: color.background,
-                      borderColor: color.border,
-                      color: color.text,
-                    }}
-                  >
-                    <span
-                      className="h-2 w-2 rounded-full border"
-                      style={{
-                        backgroundColor: color.background,
-                        borderColor: color.border,
-                      }}
-                      aria-hidden
-                    />
-                    {category}
-                  </span>
-                ))}
-              </div>
-            </details>
-          )}
-        </div>
+        <p className="mt-4 text-xs text-muted-foreground">{displayBooks.length}冊</p>
       </div>
     </section>
   );
