@@ -23,8 +23,8 @@ export function getBookVisualSize(aspectRatio: number): { width: number; height:
   return { width: Math.round(height * safeRatio), height };
 }
 
-/** 背表紙（スパイン）の厚み px */
-export const SPINE_WIDTH = 40;
+/** 背表紙（スパイン）の厚み px — 参考画像に近づけるため太めに */
+export const SPINE_WIDTH = 44;
 
 // ---------------------------------------------------------------------------
 // Types
