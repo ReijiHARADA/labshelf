@@ -11,6 +11,7 @@ import {
   loadCoverAspectRatio,
   normalizeCoverUrl,
 } from '@/lib/cover-aspect-ratio';
+import { loadCoverDominantColor } from '@/lib/cover-dominant-color';
 
 interface BookCoverProps {
   book: Book;
@@ -33,9 +34,9 @@ export function BookCover({
   width,
   height,
 }: BookCoverProps) {
-  const spineColor = getBookSpineColor(book);
-  const [imageError, setImageError] = useState(false);
   const coverSrc = normalizeCoverUrl(book.coverImageUrl);
+  const [spineColor, setSpineColor] = useState(() => getBookSpineColor(book));
+  const [imageError, setImageError] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(() => getCoverAspectRatio(book));
 
   const hasExplicitWidth = width != null;
@@ -44,10 +45,16 @@ export function BookCover({
 
   useEffect(() => {
     setImageError(false);
+    setSpineColor(getBookSpineColor(book));
     setAspectRatio(getCoverAspectRatio(book));
     if (!coverSrc) return;
     void loadCoverAspectRatio(coverSrc).then(setAspectRatio);
-  }, [book.id, book.coverImageUrl, coverSrc]);
+    if (!book.spineColor?.trim()) {
+      void loadCoverDominantColor(coverSrc).then((color) => {
+        if (color) setSpineColor(color);
+      });
+    }
+  }, [book.id, book.coverImageUrl, book.spineColor, book.category, coverSrc]);
 
   const sizeStyle = {
     ...(hasExplicitWidth ? { width: `${width}px` } : {}),

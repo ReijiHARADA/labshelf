@@ -92,8 +92,10 @@ export function BookshelfSection({
           </div>
         </div>
 
-        {/* 3Dカバーフロー */}
-        <CoverFlowBookshelf books={displayBooks} />
+        {/* 3Dカルーセル — 画面幅いっぱい、左右端で見切れ */}
+        <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 overflow-hidden">
+          <CoverFlowBookshelf books={displayBooks} />
+        </div>
 
         <p className="mt-4 text-xs text-muted-foreground">{displayBooks.length}冊</p>
       </div>

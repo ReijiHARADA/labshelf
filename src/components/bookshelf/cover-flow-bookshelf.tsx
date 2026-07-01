@@ -16,6 +16,7 @@ import {
   loadCoverAspectRatio,
   normalizeCoverUrl,
 } from '@/lib/cover-aspect-ratio';
+import { loadCoverDominantColor } from '@/lib/cover-dominant-color';
 
 // ---------------------------------------------------------------------------
 // 円弧カルーセル: 常に ~11 冊を円周上に配置し、スワイプで円が回転する
@@ -25,44 +26,64 @@ import {
 const VISIBLE_SLOTS = 11;
 const HALF = (VISIBLE_SLOTS - 1) / 2; // 5
 
-/** スロット間の円周角 (deg) */
-const SLOT_ANGLE = 11.5;
+/** 隣接スロット間の X ピッチ (px) — スパイン幅より狭く、隣同士が重なる */
+const X_PITCH = 22;
 
-/** 円弧の仮想半径 (px)。大きいほど弧が緩やか */
-const ARC_RADIUS = 780;
+/** 奥行きカーブ用の角度 (deg) */
+const DEPTH_ANGLE = 10.5;
 
-const PERSPECTIVE_PX = 1100;
-
-/** 1 スロット分のドラッグ量 (px) */
-const PX_PER_SLOT = 64;
-
-/** スナップ閾値（スロット単位） */
-const SNAP_FRACTION = 0.28;
-
-const SNAP_COOLDOWN = 280;
+/** 外側スロットを画面端まで広げる係数 */
+const EDGE_SPREAD = 14;
 
 /** スロット位置 → 3D 変換（円弧上 + スパイン主役の角度） */
 function getCarouselTransform(slotOffset: number) {
-  const angleDeg = slotOffset * SLOT_ANGLE;
-  const angleRad = (angleDeg * Math.PI) / 180;
   const abs = Math.abs(slotOffset);
+  const sign = slotOffset === 0 ? 1 : Math.sign(slotOffset);
+  const depthRad = (slotOffset * DEPTH_ANGLE * Math.PI) / 180;
 
-  // 円弧上の XZ 配置（中央 = 手前 z=0、端 = 奥）
-  const x = ARC_RADIUS * Math.sin(angleRad);
-  const z = ARC_RADIUS * (Math.cos(angleRad) - 1);
+  // 横位置: 密ピッチで重なり + 外側ほど追加広げ（見切れ維持）
+  const tightX = slotOffset * X_PITCH * LAYOUT_SCALE;
+  const edgeX = sign * abs * abs * EDGE_SPREAD * LAYOUT_SCALE;
+  const x = tightX + edgeX;
+
+  const z = ARC_RADIUS * (Math.cos(depthRad) - 1) * LAYOUT_SCALE;
 
   // スパイン主役: 左 +角度 / 右 -角度（0° 正面なし）
+  const angleDeg = slotOffset * DEPTH_ANGLE;
   const spineBase = Math.max(78 - abs * 1.2, 72);
   const rotateY =
     slotOffset <= 0
       ? spineBase + angleDeg * 0.18
       : -(spineBase - angleDeg * 0.18);
 
-  const scale = Math.max(1.06 - abs * 0.011, 0.93);
-  const opacity = Math.max(1 - abs * 0.05, 0.62);
+  const scale = Math.max(1.06 - abs * 0.009, 0.94) * LAYOUT_SCALE;
+  const opacity = Math.max(1 - abs * 0.028, 0.82);
 
   return { x, z, rotateY, scale, opacity };
 }
+
+/** 参考 UI: 中央に近い本ほど手前に被さる描画順 */
+function getPaintOrder(slot: number): number {
+  if (slot === 0) return 10000;
+  if (slot < 0) return 5000 + slot; // -5 → 4995, -1 → 4999
+  return 5000 - slot; // +5 → 4995, +1 → 4999
+}
+
+/** 円弧の仮想半径 (px) */
+const ARC_RADIUS = 820;
+
+/** 全体スケール（本サイズ・弧幅） */
+const LAYOUT_SCALE = 1.22;
+
+const PERSPECTIVE_PX = 1050;
+
+/** 1 スロット分のドラッグ量 (px) */
+const PX_PER_SLOT = 58;
+
+/** スナップ閾値（スロット単位） */
+const SNAP_FRACTION = 0.28;
+
+const SNAP_COOLDOWN = 280;
 
 type RatioMap = Record<string, number>;
 
@@ -124,7 +145,10 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
       const url = normalizeCoverUrl(book.coverImageUrl);
       dispatchRatio({ id: book.id, ratio: getCoverAspectRatio(book) });
       if (!url) continue;
-      loadCoverAspectRatio(url).then((r) => dispatchRatio({ id: book.id, ratio: r }));
+      void loadCoverAspectRatio(url).then((r) => dispatchRatio({ id: book.id, ratio: r }));
+      if (!book.spineColor?.trim()) {
+        void loadCoverDominantColor(url);
+      }
     }
   }, [books]);
 
@@ -302,16 +326,37 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
 
   if (books.length === 0) return null;
 
-  const maxH = Math.max(...sizes.map((s) => s.height), 260);
-  const stageH = maxH + 40;
+  const maxH = Math.max(...sizes.map((s) => s.height), 300);
+  const stageH = maxH + 48;
   const dur = reduceMotion ? '0ms' : '360ms';
   const ease = 'cubic-bezier(0.22, 0.9, 0.28, 1)';
   const centerX = containerWidth / 2;
   const transition = isDragging ? 'none' : `transform ${dur} ${ease}, left ${dur} ${ease}`;
 
-  // 常に VISIBLE_SLOTS 分のスロットを描画
   const slots: number[] = [];
   for (let s = -HALF; s <= HALF; s++) slots.push(s);
+
+  // 外側 → 内側 → 中央の順で描画（中央付近が手前に被さる）
+  const slotEntries = slots
+    .map((slot) => {
+      const bookIndex = activeIndex + slot;
+      if (bookIndex < 0 || bookIndex >= books.length) return null;
+      const slotOffset = slot - dragFraction;
+      const { x, z, rotateY, scale, opacity } = getCarouselTransform(slotOffset);
+      return {
+        slot,
+        bookIndex,
+        book: books[bookIndex]!,
+        slotOffset,
+        x,
+        z,
+        rotateY,
+        scale,
+        opacity,
+      };
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null)
+    .sort((a, b) => getPaintOrder(a.slot) - getPaintOrder(b.slot));
 
   return (
     <div
@@ -347,15 +392,8 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
           transformStyle: 'preserve-3d',
         }}
       >
-        {slots.map((slot) => {
-          const bookIndex = activeIndex + slot;
-          if (bookIndex < 0 || bookIndex >= books.length) return null;
-
-          const book = books[bookIndex]!;
-          const slotOffset = slot - dragFraction;
-          const { x, z, rotateY, scale, opacity } = getCarouselTransform(slotOffset);
+        {slotEntries.map(({ slot, bookIndex, book, slotOffset, x, z, rotateY, scale, opacity }) => {
           const sz = sizes[bookIndex] ?? { width: 180, height: 268 };
-
           const isCenter = Math.abs(slotOffset) < 0.5;
 
           return (
@@ -368,9 +406,8 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
                 width: sz.width,
                 height: sz.height,
                 transformStyle: 'preserve-3d',
-                transform: `translateZ(${z}px)`,
+                transform: `translate3d(0,0,${z}px)`,
                 transition,
-                zIndex: Math.round(100 - Math.abs(slotOffset) * 10),
                 overflow: 'visible',
               }}
             >

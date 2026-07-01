@@ -9,23 +9,18 @@ import {
   loadCoverAspectRatio,
   normalizeCoverUrl,
 } from '@/lib/cover-aspect-ratio';
-
-// ---------------------------------------------------------------------------
-// 高さ基準で表紙比率を維持
-// ---------------------------------------------------------------------------
+import { loadCoverDominantColor } from '@/lib/cover-dominant-color';
 
 export function getBookVisualSize(aspectRatio: number): { width: number; height: number } {
   const safeRatio = Math.min(Math.max(aspectRatio, 0.42), 1.15);
-  const height = 268;
+  const height = 308;
   return { width: Math.round(height * safeRatio), height };
 }
 
-/** 3D ボックスの厚み（スパイン幅） */
 export const SPINE_WIDTH = 32;
 
 interface Book3DCardProps {
   book: Book;
-  /** Y 軸回転 (deg)。±75〜82 でスパインが主役になる */
   rotateY: number;
   onClick: () => void;
   transitionMs?: number;
@@ -35,8 +30,12 @@ interface Book3DCardProps {
 }
 
 /**
- * front / back / spine / fore-edge の 4 面ボックス。
- * rotateY ≈ ±80° でスパイン面がカメラ向きになり、参考 UI の薄い板列になる。
+ * 正しい CSS 3D ボックス構造:
+ *   front/back : translateZ(±S/2)
+ *   spine/edge : rotateY(±90deg) translateZ(W/2)
+ *
+ * スパイン面は backfaceVisibility: visible を維持し、
+ * 回転アニメ中のちらつき（見えたり消えたり）を防ぐ。
  */
 export function Book3DCard({
   book,
@@ -47,18 +46,24 @@ export function Book3DCard({
   opacity = 1,
   reduceMotion = false,
 }: Book3DCardProps) {
-  const spineColor = getBookSpineColor(book);
   const coverSrc = normalizeCoverUrl(book.coverImageUrl);
 
+  const [spineColor, setSpineColor] = useState(() => getBookSpineColor(book));
   const [aspectRatio, setAspectRatio] = useState(() => getCoverAspectRatio(book));
   const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     setImageError(false);
+    setSpineColor(getBookSpineColor(book));
     setAspectRatio(getCoverAspectRatio(book));
     if (!coverSrc) return;
     void loadCoverAspectRatio(coverSrc).then(setAspectRatio);
-  }, [book.id, book.coverImageUrl, coverSrc]);
+    if (!book.spineColor?.trim()) {
+      void loadCoverDominantColor(coverSrc).then((color) => {
+        if (color) setSpineColor(color);
+      });
+    }
+  }, [book.id, book.coverImageUrl, book.spineColor, book.category, coverSrc]);
 
   const { width: W, height: H } = getBookVisualSize(aspectRatio);
   const S = SPINE_WIDTH;
@@ -67,8 +72,7 @@ export function Book3DCard({
   const ease = 'cubic-bezier(0.22, 0.9, 0.28, 1)';
   const hasCover = !!coverSrc && !imageError;
 
-  const titleText = book.title.length > 16 ? `${book.title.slice(0, 15)}…` : book.title;
-  const authorText = book.author.length > 10 ? `${book.author.slice(0, 9)}…` : book.author;
+  const titleText = book.title;
 
   const imgStyle: React.CSSProperties = {
     width: W,
@@ -76,6 +80,18 @@ export function Book3DCard({
     objectFit: 'cover',
     objectPosition: 'center top',
     display: 'block',
+  };
+
+  /** 側面共通: 回転中も背面をカリングしない */
+  const sideFaceBase: React.CSSProperties = {
+    position: 'absolute',
+    top: 0,
+    left: (W - S) / 2,
+    width: S,
+    height: H,
+    backfaceVisibility: 'visible',
+    WebkitBackfaceVisibility: 'visible',
+    transformStyle: 'preserve-3d',
   };
 
   return (
@@ -99,6 +115,7 @@ export function Book3DCard({
         transform: `scale(${scale})`,
         opacity,
         transformOrigin: 'center center',
+        transformStyle: 'preserve-3d',
         transition: `transform ${dur} ${ease}, opacity ${dur} ease`,
         flexShrink: 0,
       }}
@@ -109,8 +126,9 @@ export function Book3DCard({
           height: H,
           position: 'relative',
           transformStyle: 'preserve-3d',
-          transform: `rotateY(${rotateY}deg)`,
+          transform: `rotateY(${rotateY}deg) translate3d(0,0,0)`,
           transition: reduceMotion ? 'none' : `transform ${dur} ${ease}`,
+          willChange: reduceMotion ? undefined : 'transform',
         }}
       >
         {/* 表紙 */}
@@ -118,8 +136,9 @@ export function Book3DCard({
           style={{
             position: 'absolute',
             inset: 0,
-            transform: `translateZ(${S / 2}px)`,
+            transform: `translate3d(0,0,${S / 2}px)`,
             backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
             overflow: 'hidden',
             backgroundColor: spineColor,
           }}
@@ -143,8 +162,9 @@ export function Book3DCard({
           style={{
             position: 'absolute',
             inset: 0,
-            transform: `rotateY(180deg) translateZ(${S / 2}px)`,
+            transform: `rotateY(180deg) translate3d(0,0,${S / 2}px)`,
             backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
             overflow: 'hidden',
             backgroundColor: spineColor,
           }}
@@ -171,31 +191,23 @@ export function Book3DCard({
           />
         </div>
 
-        {/* 背表紙（左面） */}
+        {/* 背表紙（左面）— translateZ(W/2) で正しいボックス角に配置 */}
         <div
           aria-hidden
           style={{
-            position: 'absolute',
-            top: 0,
-            left: -(S / 2),
-            width: S,
-            height: H,
-            transform: 'rotateY(-90deg)',
-            backfaceVisibility: 'hidden',
+            ...sideFaceBase,
+            transform: `rotateY(-90deg) translate3d(0,0,${W / 2}px)`,
             backgroundColor: spineColor,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8px 0',
+            justifyContent: 'center',
+            padding: '10px 0',
             overflow: 'hidden',
-            boxShadow:
-              'inset -3px 0 10px rgba(0,0,0,0.35), inset 2px 0 4px rgba(255,255,255,0.1)',
           }}
         >
           <span
             style={{
-              flex: 1,
               writingMode: 'vertical-rl',
               textOrientation: 'mixed',
               color: 'rgba(255,255,255,0.95)',
@@ -205,23 +217,10 @@ export function Book3DCard({
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
-              maxHeight: H - 44,
+              maxHeight: H - 20,
             }}
           >
             {titleText}
-          </span>
-          <span
-            style={{
-              writingMode: 'vertical-rl',
-              color: 'rgba(255,255,255,0.5)',
-              fontSize: 8,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              maxHeight: 48,
-            }}
-          >
-            {authorText}
           </span>
         </div>
 
@@ -229,17 +228,10 @@ export function Book3DCard({
         <div
           aria-hidden
           style={{
-            position: 'absolute',
-            top: 0,
-            left: W - S / 2,
-            width: S,
-            height: H,
-            transform: 'rotateY(90deg)',
-            backfaceVisibility: 'hidden',
+            ...sideFaceBase,
+            transform: `rotateY(90deg) translate3d(0,0,${W / 2}px)`,
             background:
               'linear-gradient(to right, rgba(235,230,220,0.95), rgba(248,244,236,0.92))',
-            boxShadow:
-              'inset 3px 0 8px rgba(0,0,0,0.18), inset -2px 0 5px rgba(255,255,255,0.2)',
           }}
         />
       </div>

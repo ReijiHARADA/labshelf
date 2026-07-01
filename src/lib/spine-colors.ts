@@ -1,4 +1,5 @@
 import type { Book, BookCategory, BookDimensions } from '@/types/book';
+import { getCachedCoverDominantColor } from '@/lib/cover-dominant-color';
 
 export const categoryColors: Record<BookCategory | string, string> = {
   グラフィックデザイン: 'var(--spine-red)',
@@ -149,9 +150,14 @@ export function getSpineColor(category: string, _bookId?: string): string {
 export function getBookSpineColor(book: {
   category: string;
   spineColor?: string;
+  coverImageUrl?: string;
 }): string {
   const custom = book.spineColor?.trim();
   if (custom) return custom;
+
+  const fromCover = getCachedCoverDominantColor(book.coverImageUrl);
+  if (fromCover) return fromCover;
+
   return getCategoryColor(book.category);
 }
 
