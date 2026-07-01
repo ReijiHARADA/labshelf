@@ -11,36 +11,36 @@ import {
 } from '@/lib/cover-aspect-ratio';
 import { loadCoverDominantColor } from '@/lib/cover-dominant-color';
 
-export function getBookVisualSize(aspectRatio: number): { width: number; height: number } {
+export function getBookVisualSize(
+  aspectRatio: number,
+  baseHeight = 308
+): { width: number; height: number } {
   const safeRatio = Math.min(Math.max(aspectRatio, 0.42), 1.15);
-  const height = 308;
-  return { width: Math.round(height * safeRatio), height };
+  return { width: Math.round(baseHeight * safeRatio), height: baseHeight };
 }
 
-export const SPINE_WIDTH = 32;
+export function getBookThickness(height: number): number {
+  return Math.max(12, Math.min(24, Math.round(height * 0.055)));
+}
 
 interface Book3DCardProps {
   book: Book;
   rotateY: number;
   onClick: () => void;
+  baseHeight?: number;
+  thickness?: number;
   transitionMs?: number;
   scale?: number;
   opacity?: number;
   reduceMotion?: boolean;
 }
 
-/**
- * 正しい CSS 3D ボックス構造:
- *   front/back : translateZ(±S/2)
- *   spine/edge : rotateY(±90deg) translateZ(W/2)
- *
- * スパイン面は backfaceVisibility: visible を維持し、
- * 回転アニメ中のちらつき（見えたり消えたり）を防ぐ。
- */
 export function Book3DCard({
   book,
   rotateY,
   onClick,
+  baseHeight = 308,
+  thickness,
   transitionMs = 340,
   scale = 1,
   opacity = 1,
@@ -65,24 +65,21 @@ export function Book3DCard({
     }
   }, [book.id, book.coverImageUrl, book.spineColor, book.category, coverSrc]);
 
-  const { width: W, height: H } = getBookVisualSize(aspectRatio);
-  const S = SPINE_WIDTH;
+  const { width: W, height: H } = getBookVisualSize(aspectRatio, baseHeight);
+  const S = thickness ?? getBookThickness(H);
 
   const dur = reduceMotion ? '0ms' : `${transitionMs}ms`;
   const ease = 'cubic-bezier(0.22, 0.9, 0.28, 1)';
   const hasCover = !!coverSrc && !imageError;
 
-  const titleText = book.title;
-
   const imgStyle: React.CSSProperties = {
     width: W,
     height: H,
-    objectFit: 'cover',
+    objectFit: 'contain',
     objectPosition: 'center top',
     display: 'block',
   };
 
-  /** 側面共通: 回転中も背面をカリングしない */
   const sideFaceBase: React.CSSProperties = {
     position: 'absolute',
     top: 0,
@@ -131,7 +128,6 @@ export function Book3DCard({
           willChange: reduceMotion ? undefined : 'transform',
         }}
       >
-        {/* 表紙 */}
         <div
           style={{
             position: 'absolute',
@@ -157,7 +153,6 @@ export function Book3DCard({
           )}
         </div>
 
-        {/* 背面 */}
         <div
           style={{
             position: 'absolute',
@@ -191,7 +186,6 @@ export function Book3DCard({
           />
         </div>
 
-        {/* 背表紙（左面）— translateZ(W/2) で正しいボックス角に配置 */}
         <div
           aria-hidden
           style={{
@@ -211,7 +205,7 @@ export function Book3DCard({
               writingMode: 'vertical-rl',
               textOrientation: 'mixed',
               color: 'rgba(255,255,255,0.95)',
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 700,
               letterSpacing: '0.05em',
               overflow: 'hidden',
@@ -220,11 +214,10 @@ export function Book3DCard({
               maxHeight: H - 20,
             }}
           >
-            {titleText}
+            {book.title}
           </span>
         </div>
 
-        {/* 小口（右面） */}
         <div
           aria-hidden
           style={{

@@ -10,7 +10,11 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Book } from '@/types/book';
-import { Book3DCard, getBookVisualSize } from './book-3d-card';
+import {
+  Book3DCard,
+  getBookThickness,
+  getBookVisualSize,
+} from './book-3d-card';
 import {
   getCoverAspectRatio,
   loadCoverAspectRatio,
@@ -19,79 +23,50 @@ import {
 import { loadCoverDominantColor } from '@/lib/cover-dominant-color';
 
 // ---------------------------------------------------------------------------
-// 円弧カルーセル: 常に ~11 冊を円周上に配置し、スワイプで円が回転する
+// 3D Book Wall — 中央から左右に向かい合う本の列
 // ---------------------------------------------------------------------------
 
-/** 同時表示スロット数（参考 UI と同程度） */
-const VISIBLE_SLOTS = 11;
-const HALF = (VISIBLE_SLOTS - 1) / 2; // 5
+const VISIBLE_SLOTS = 19;
+const HALF = Math.floor(VISIBLE_SLOTS / 2);
 
-/** 隣接スロット間の X ピッチ (px) — スパイン幅より狭く、隣同士が重なる */
-const X_PITCH = 22;
-
-/** 奥行きカーブ用の角度 (deg) */
-const DEPTH_ANGLE = 10.5;
-
-/** 外側スロットを画面端まで広げる係数 */
-const EDGE_SPREAD = 14;
-
-/** スロット位置 → 3D 変換（円弧上 + スパイン主役の角度） */
-function getCarouselTransform(slotOffset: number) {
-  const abs = Math.abs(slotOffset);
-  const sign = slotOffset === 0 ? 1 : Math.sign(slotOffset);
-  const depthRad = (slotOffset * DEPTH_ANGLE * Math.PI) / 180;
-
-  // 横位置: 密ピッチで重なり + 外側ほど追加広げ（見切れ維持）
-  const tightX = slotOffset * X_PITCH * LAYOUT_SCALE;
-  const edgeX = sign * abs * abs * EDGE_SPREAD * LAYOUT_SCALE;
-  const x = tightX + edgeX;
-
-  const z = ARC_RADIUS * (Math.cos(depthRad) - 1) * LAYOUT_SCALE;
-
-  // 表紙/背面の切替は 90° 付近ギリギリまで遅らせる（スパイン主役）
-  // 中央〜内側: 88–89° / 外側端のみ 86° で表紙 or 背面が少し見える
-  let magnitude: number;
-  if (abs < 0.6) {
-    magnitude = 89;
-  } else if (abs < 2.5) {
-    magnitude = 88;
-  } else if (abs < 4) {
-    magnitude = 87;
-  } else {
-    magnitude = 86;
-  }
-
-  // 中央を跨いだ瞬間に向き反転（± で表紙↔背面が切り替わる）
-  const rotateY = slotOffset <= 0 ? magnitude : -magnitude;
-
-  const scale = Math.max(1.06 - abs * 0.009, 0.94) * LAYOUT_SCALE;
-  const opacity = Math.max(1 - abs * 0.028, 0.82);
-
-  return { x, z, rotateY, scale, opacity };
-}
-
-/** 参考 UI: 中央に近い本ほど手前に被さる描画順 */
-function getPaintOrder(slot: number): number {
-  if (slot === 0) return 10000;
-  if (slot < 0) return 5000 + slot; // -5 → 4995, -1 → 4999
-  return 5000 - slot; // +5 → 4995, +1 → 4999
-}
-
-/** 円弧の仮想半径 (px) */
-const ARC_RADIUS = 820;
-
-/** 全体スケール（本サイズ・弧幅） */
-const LAYOUT_SCALE = 1.22;
-
-const PERSPECTIVE_PX = 1050;
-
-/** 1 スロット分のドラッグ量 (px) */
-const PX_PER_SLOT = 58;
-
-/** スナップ閾値（スロット単位） */
-const SNAP_FRACTION = 0.28;
-
+const PERSPECTIVE_PX = 1280;
+const PX_PER_SLOT = 52;
+const SNAP_FRACTION = 0.22;
 const SNAP_COOLDOWN = 280;
+
+function wrapIndex(index: number, length: number): number {
+  if (length <= 0) return 0;
+  return ((index % length) + length) % length;
+}
+
+/** 中央から左右へ奥に引く配置（円弧ではない） */
+function getBookWallTransform(slotOffset: number) {
+  const abs = Math.abs(slotOffset);
+  const side = slotOffset < 0 ? -1 : 1;
+
+  const x = side * (20 + abs * 54 + Math.pow(abs, 1.35) * 8);
+  const z = -abs * 46;
+
+  const rotateBase = 80;
+  const rotateAdd = Math.min(abs * 1.3, 7);
+  const rotateY = side < 0 ? rotateBase + rotateAdd : -rotateBase - rotateAdd;
+
+  const scale = Math.max(0.78, 1 - abs * 0.014);
+  const opacity = Math.max(0.45, 1 - Math.max(0, abs - 6) * 0.1);
+  const blur = Math.max(0, abs - 7) * 0.8;
+
+  return { x, z, rotateY, scale, opacity, blur, side };
+}
+
+function getPaintOrder(slotOffset: number): number {
+  return -Math.abs(slotOffset);
+}
+
+function computeStageMetrics(viewportHeight: number) {
+  const stageH = Math.min(Math.max(viewportHeight * 0.72, 460), 720);
+  const bookBaseHeight = stageH * 0.86;
+  return { stageH, bookBaseHeight };
+}
 
 type RatioMap = Record<string, number>;
 
@@ -113,9 +88,13 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [containerWidth, setContainerWidth] = useState(1200);
+  const [stageMetrics, setStageMetrics] = useState(() =>
+    typeof window !== 'undefined'
+      ? computeStageMetrics(window.innerHeight)
+      : { stageH: 520, bookBaseHeight: 447 }
+  );
   const [reduceMotion, setReduceMotion] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  /** ドラッグ中の fractional offset（+ = 次の本へ回転） */
   const [dragFraction, setDragFraction] = useState(0);
 
   const dragStartX = useRef(0);
@@ -124,6 +103,8 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
   const dragFractionRef = useRef(0);
   const wheelAccum = useRef(0);
   const lastWheelAt = useRef(0);
+
+  const { bookBaseHeight } = stageMetrics;
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -134,8 +115,15 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
   }, []);
 
   useEffect(() => {
+    const update = () => setStageMetrics(computeStageMetrics(window.innerHeight));
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  useEffect(() => {
     if (books.length === 0) return;
-    setActiveIndex((p) => Math.min(p, books.length - 1));
+    setActiveIndex((p) => wrapIndex(p, books.length));
   }, [books.length]);
 
   useEffect(() => {
@@ -163,44 +151,33 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
   const sizes = useMemo(
     () =>
       books.map((book) =>
-        getBookVisualSize(ratios[book.id] ?? getCoverAspectRatio(book))
+        getBookVisualSize(ratios[book.id] ?? getCoverAspectRatio(book), bookBaseHeight)
       ),
-    [books, ratios]
+    [books, ratios, bookBaseHeight]
   );
 
-  const clampIndex = useCallback(
-    (i: number) => Math.max(0, Math.min(books.length - 1, i)),
-    [books.length]
-  );
-
-  const applyDragFraction = useCallback(
-    (raw: number) => {
-      let f = raw;
-      // 端でラバーバンド
-      if (activeIndex <= 0 && f > 0) f *= 0.22;
-      if (activeIndex >= books.length - 1 && f < 0) f *= 0.22;
-      dragFractionRef.current = f;
-      setDragFraction(f);
-    },
-    [activeIndex, books.length]
-  );
+  const applyDragFraction = useCallback((raw: number) => {
+    dragFractionRef.current = raw;
+    setDragFraction(raw);
+  }, []);
 
   const commitDrag = useCallback(() => {
     const steps = Math.round(dragFractionRef.current);
-    if (steps !== 0) {
-      setActiveIndex((p) => clampIndex(p + steps));
+    if (steps !== 0 && books.length > 0) {
+      setActiveIndex((p) => wrapIndex(p + steps, books.length));
     }
     dragFractionRef.current = 0;
     setDragFraction(0);
     draggingRef.current = false;
     setIsDragging(false);
-  }, [clampIndex]);
+  }, [books.length]);
 
   const step = useCallback(
     (dir: 1 | -1) => {
-      setActiveIndex((p) => clampIndex(p + dir));
+      if (books.length === 0) return;
+      setActiveIndex((p) => wrapIndex(p + dir, books.length));
     },
-    [clampIndex]
+    [books.length]
   );
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
@@ -334,27 +311,26 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
 
   if (books.length === 0) return null;
 
-  const maxH = Math.max(...sizes.map((s) => s.height), 300);
-  const maxScale = 1.06 * LAYOUT_SCALE;
-  // scale() はレイアウト枠からはみ出すため 2*scale-1 分の高さが必要
-  const stageH = Math.ceil(maxH * (2 * maxScale - 1)) + 48;
-  const dur = reduceMotion ? '0ms' : '360ms';
+  const maxH = bookBaseHeight;
+  const maxScale = 1;
+  const layoutStageH = Math.ceil(maxH * (2 * maxScale - 1)) + 48;
+  const dur = reduceMotion ? '0ms' : '380ms';
   const ease = 'cubic-bezier(0.22, 0.9, 0.28, 1)';
   const centerX = containerWidth / 2;
   const transition = isDragging
     ? 'none'
-    : `transform ${dur} ${ease}, left ${dur} ${ease}, opacity ${dur} ${ease}`;
+    : `transform ${dur} ${ease}, opacity ${dur} ${ease}, filter ${dur} ${ease}`;
 
   const slots: number[] = [];
   for (let s = -HALF; s <= HALF; s++) slots.push(s);
 
-  // 外側 → 内側 → 中央の順で描画（中央付近が手前に被さる）
   const slotEntries = slots
     .map((slot) => {
-      const bookIndex = activeIndex + slot;
-      if (bookIndex < 0 || bookIndex >= books.length) return null;
+      const bookIndex = wrapIndex(activeIndex + slot, books.length);
       const slotOffset = slot - dragFraction;
-      const { x, z, rotateY, scale, opacity } = getCarouselTransform(slotOffset);
+      const { x, z, rotateY, scale, opacity, blur, side } =
+        getBookWallTransform(slotOffset);
+
       return {
         slot,
         bookIndex,
@@ -365,16 +341,17 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
         rotateY,
         scale,
         opacity,
+        blur,
+        side,
       };
     })
-    .filter((e): e is NonNullable<typeof e> => e !== null)
-    .sort((a, b) => getPaintOrder(a.slot) - getPaintOrder(b.slot));
+    .sort((a, b) => getPaintOrder(a.slotOffset) - getPaintOrder(b.slotOffset));
 
   return (
     <div
       style={{
         width: '100%',
-        minHeight: stageH,
+        minHeight: layoutStageH,
         position: 'relative',
         overflow: 'visible',
       }}
@@ -382,8 +359,8 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
       <div
         ref={containerRef}
         role="region"
-        aria-label="書籍カルーセル"
-        aria-roledescription="3D書籍カルーセル"
+        aria-label="書籍3Dウォール"
+        aria-roledescription="3D書籍ウォール"
         tabIndex={0}
         onKeyDown={onKeyDown}
         onPointerDown={onPointerDown}
@@ -399,67 +376,70 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
           left: '50%',
           transform: 'translateX(-50%)',
           width: '100vw',
-          height: stageH,
+          height: layoutStageH,
           outline: 'none',
           userSelect: 'none',
           touchAction: 'none',
           cursor: isDragging ? 'grabbing' : 'grab',
           overflow: 'visible',
-          // 左右のみ見切れ。上下は negative inset でクリップ範囲を広げる
           clipPath: 'inset(-120px 0 -120px 0)',
           perspective: PERSPECTIVE_PX,
-          perspectiveOrigin: '50% 50%',
+          perspectiveOrigin: '50% 46%',
         }}
       >
         <div
           style={{
             position: 'relative',
-            height: stageH,
+            height: layoutStageH,
             transformStyle: 'preserve-3d',
           }}
         >
-          {slotEntries.map(({ slot, bookIndex, book, slotOffset, x, z, rotateY, scale, opacity }) => {
-            const sz = sizes[bookIndex] ?? { width: 180, height: 268 };
-            const isCenter = Math.abs(slotOffset) < 0.5;
-            const visualH = sz.height * scale;
-            const visualW = sz.width * scale;
+          {slotEntries.map(
+            ({ slot, bookIndex, book, x, z, rotateY, scale, opacity, blur, side }) => {
+              const sz = sizes[bookIndex] ?? getBookVisualSize(0.7, bookBaseHeight);
+              const thickness = getBookThickness(sz.height);
+              const visualH = sz.height * scale;
 
-            return (
-              <div
-                key={book.id}
-                style={{
-                  position: 'absolute',
-                  top: (stageH - visualH) / 2,
-                  left: centerX + x - visualW / 2,
-                  width: sz.width,
-                  height: sz.height,
-                  transformStyle: 'preserve-3d',
-                  transform: `translate3d(0,0,${z}px) scale(${scale})`,
-                  transformOrigin: 'center center',
-                  opacity,
-                  transition: `${transition}, opacity ${dur} ${ease}`,
-                  overflow: 'visible',
-                }}
-              >
-                <Book3DCard
-                  book={book}
-                  rotateY={rotateY}
-                  scale={1}
-                  opacity={1}
-                  transitionMs={isDragging ? 0 : 360}
-                  reduceMotion={reduceMotion}
-                  onClick={() => {
-                    if (dragMoved.current) return;
-                    if (isCenter) {
-                      router.push(`/books/${book.id}`);
-                    } else {
-                      setActiveIndex(bookIndex);
-                    }
+              const anchorLeft = centerX;
+              const translateX = side < 0 ? x - sz.width : x;
+              const transformOrigin = side < 0 ? '100% 50%' : '0% 50%';
+
+              return (
+                <div
+                  key={`${slot}-${book.id}-${bookIndex}`}
+                  style={{
+                    position: 'absolute',
+                    top: (layoutStageH - visualH) / 2,
+                    left: anchorLeft,
+                    width: sz.width,
+                    height: sz.height,
+                    transformStyle: 'preserve-3d',
+                    transformOrigin,
+                    transform: `translate3d(${translateX}px, 0, ${z}px) scale(${scale})`,
+                    opacity,
+                    filter: blur > 0 ? `blur(${blur}px)` : undefined,
+                    transition,
+                    overflow: 'visible',
                   }}
-                />
-              </div>
-            );
-          })}
+                >
+                  <Book3DCard
+                    book={book}
+                    rotateY={rotateY}
+                    baseHeight={bookBaseHeight}
+                    thickness={thickness}
+                    scale={1}
+                    opacity={1}
+                    transitionMs={isDragging ? 0 : 380}
+                    reduceMotion={reduceMotion}
+                    onClick={() => {
+                      if (dragMoved.current) return;
+                      router.push(`/books/${book.id}`);
+                    }}
+                  />
+                </div>
+              );
+            }
+          )}
         </div>
 
         <p className="sr-only" aria-live="polite">
