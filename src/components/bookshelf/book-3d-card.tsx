@@ -11,57 +11,38 @@ import {
 } from '@/lib/cover-aspect-ratio';
 
 // ---------------------------------------------------------------------------
-// Visual sizing (aspect ratio を維持したまま高さ基準で幅を計算)
+// 高さ基準で表紙比率を維持
 // ---------------------------------------------------------------------------
 
 export function getBookVisualSize(aspectRatio: number): { width: number; height: number } {
   const safeRatio = Math.min(Math.max(aspectRatio, 0.42), 1.15);
-  let height = 320;
-  if (safeRatio > 0.9) height = 280;
-  else if (safeRatio < 0.52) height = 350;
+  const height = 268;
   return { width: Math.round(height * safeRatio), height };
 }
 
-/** 本の厚み (px) = 3D ボックスの深さ */
-export const SPINE_WIDTH = 48;
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+/** 3D ボックスの厚み（スパイン幅） */
+export const SPINE_WIDTH = 32;
 
 interface Book3DCardProps {
   book: Book;
-  /** rotateY (deg). 正=左面(スパイン)が向こう、負=右面が向こう */
+  /** Y 軸回転 (deg)。±75〜82 でスパインが主役になる */
   rotateY: number;
   onClick: () => void;
-  isActive?: boolean;
   transitionMs?: number;
   scale?: number;
   opacity?: number;
   reduceMotion?: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Book3DCard
-// ---------------------------------------------------------------------------
-
 /**
- * 表紙 / 背面 / 左スパイン / 右小口 の4面を持つ3Dボックス。
- *
- * 座標系（中心 = 表紙の中心）:
- *   front: translateZ(+S/2)
- *   back:  rotateY(180deg) translateZ(+S/2)
- *   left:  left=-(S/2)  rotateY(-90deg)  ← 背表紙（スパイン）
- *   right: left=W-(S/2) rotateY(90deg)   ← 小口
- *
- * perspective は親ステージに1箇所のみ設定。このコンポーネント内には perspective を持たない。
+ * front / back / spine / fore-edge の 4 面ボックス。
+ * rotateY ≈ ±80° でスパイン面がカメラ向きになり、参考 UI の薄い板列になる。
  */
 export function Book3DCard({
   book,
   rotateY,
   onClick,
-  isActive = false,
-  transitionMs = 380,
+  transitionMs = 340,
   scale = 1,
   opacity = 1,
   reduceMotion = false,
@@ -83,16 +64,16 @@ export function Book3DCard({
   const S = SPINE_WIDTH;
 
   const dur = reduceMotion ? '0ms' : `${transitionMs}ms`;
-  const ease = 'cubic-bezier(0.25,0.8,0.25,1)';
+  const ease = 'cubic-bezier(0.22, 0.9, 0.28, 1)';
   const hasCover = !!coverSrc && !imageError;
 
-  const titleText = book.title.length > 18 ? book.title.slice(0, 17) + '…' : book.title;
-  const authorText = book.author.length > 12 ? book.author.slice(0, 11) + '…' : book.author;
+  const titleText = book.title.length > 16 ? `${book.title.slice(0, 15)}…` : book.title;
+  const authorText = book.author.length > 10 ? `${book.author.slice(0, 9)}…` : book.author;
 
-  const imgBase: React.CSSProperties = {
+  const imgStyle: React.CSSProperties = {
     width: W,
     height: H,
-    objectFit: 'contain',
+    objectFit: 'cover',
     objectPosition: 'center top',
     display: 'block',
   };
@@ -117,11 +98,11 @@ export function Book3DCard({
         outline: 'none',
         transform: `scale(${scale})`,
         opacity,
+        transformOrigin: 'center center',
         transition: `transform ${dur} ${ease}, opacity ${dur} ease`,
         flexShrink: 0,
       }}
     >
-      {/* 3D inner: rotateY はここに集約 */}
       <div
         style={{
           width: W,
@@ -132,8 +113,7 @@ export function Book3DCard({
           transition: reduceMotion ? 'none' : `transform ${dur} ${ease}`,
         }}
       >
-
-        {/* ── 表紙 (front) ── */}
+        {/* 表紙 */}
         <div
           style={{
             position: 'absolute',
@@ -141,14 +121,14 @@ export function Book3DCard({
             transform: `translateZ(${S / 2}px)`,
             backfaceVisibility: 'hidden',
             overflow: 'hidden',
-            boxShadow: '2px 6px 28px rgba(0,0,0,0.4)',
+            backgroundColor: spineColor,
           }}
         >
           {hasCover ? (
             <img
               src={coverSrc!}
               alt=""
-              style={imgBase}
+              style={imgStyle}
               loading="lazy"
               decoding="async"
               onError={() => setImageError(true)}
@@ -156,18 +136,9 @@ export function Book3DCard({
           ) : (
             <FallbackFace w={W} h={H} color={spineColor} title={book.title} />
           )}
-          {book.borrowedBy && (
-            <span style={{
-              position: 'absolute', top: 5, left: 5,
-              background: 'rgba(220,38,38,0.9)', color: '#fff',
-              fontSize: 9, padding: '2px 5px', borderRadius: 3, fontWeight: 600,
-            }}>
-              貸出中
-            </span>
-          )}
         </div>
 
-        {/* ── 背面 (back) — 表紙流用・暗め加工 ── */}
+        {/* 背面 */}
         <div
           style={{
             position: 'absolute',
@@ -175,33 +146,32 @@ export function Book3DCard({
             transform: `rotateY(180deg) translateZ(${S / 2}px)`,
             backfaceVisibility: 'hidden',
             overflow: 'hidden',
-            boxShadow: '2px 6px 28px rgba(0,0,0,0.4)',
+            backgroundColor: spineColor,
           }}
         >
           {hasCover ? (
             <img
               src={coverSrc!}
               alt=""
-              style={{ ...imgBase, filter: 'saturate(0.5) brightness(0.62)' }}
+              style={{ ...imgStyle, filter: 'brightness(0.7) saturate(0.7)' }}
               loading="lazy"
               decoding="async"
             />
           ) : (
             <FallbackFace w={W} h={H} color={spineColor} title="" dimmed />
           )}
-          {/* 裏面感を強調するグラデーションオーバーレイ */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'linear-gradient(140deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.06) 55%, rgba(255,255,255,0.04) 100%)',
-            pointerEvents: 'none',
-          }} />
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background:
+                'linear-gradient(135deg, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.05) 60%, rgba(255,255,255,0.03) 100%)',
+              pointerEvents: 'none',
+            }}
+          />
         </div>
 
-        {/* ── 左面（背表紙 / スパイン）── */}
-        {/*
-         * center: left: -(S/2) → 中心が x=0 = 表紙の左端
-         * transform: rotateY(-90deg) → 左向きに折り曲げ
-         */}
+        {/* 背表紙（左面） */}
         <div
           aria-hidden
           style={{
@@ -217,44 +187,45 @@ export function Book3DCard({
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '10px 0',
+            padding: '8px 0',
             overflow: 'hidden',
-            // 内側に影を入れて深み感
-            boxShadow: 'inset -4px 0 12px rgba(0,0,0,0.28), inset 4px 0 4px rgba(255,255,255,0.08)',
+            boxShadow:
+              'inset -3px 0 10px rgba(0,0,0,0.35), inset 2px 0 4px rgba(255,255,255,0.1)',
           }}
         >
-          {/* タイトル縦書き */}
-          <span style={{
-            flex: 1,
-            writingMode: 'vertical-rl',
-            textOrientation: 'mixed',
-            color: 'rgba(255,255,255,0.96)',
-            fontSize: 11,
-            fontWeight: 700,
-            lineHeight: 1.3,
-            letterSpacing: '0.06em',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            maxHeight: H - 48,
-          }}>
+          <span
+            style={{
+              flex: 1,
+              writingMode: 'vertical-rl',
+              textOrientation: 'mixed',
+              color: 'rgba(255,255,255,0.95)',
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.05em',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxHeight: H - 44,
+            }}
+          >
             {titleText}
           </span>
-          {/* 著者縦書き */}
-          <span style={{
-            writingMode: 'vertical-rl',
-            color: 'rgba(255,255,255,0.55)',
-            fontSize: 9,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            maxHeight: 56,
-          }}>
+          <span
+            style={{
+              writingMode: 'vertical-rl',
+              color: 'rgba(255,255,255,0.5)',
+              fontSize: 8,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxHeight: 48,
+            }}
+          >
             {authorText}
           </span>
         </div>
 
-        {/* ── 右面（小口）── 紙の断面っぽい色 */}
+        {/* 小口（右面） */}
         <div
           aria-hidden
           style={{
@@ -265,64 +236,59 @@ export function Book3DCard({
             height: H,
             transform: 'rotateY(90deg)',
             backfaceVisibility: 'hidden',
-            // 小口は少し明るいオフホワイト〜クリーム（紙の断面）
-            background: `linear-gradient(to right, ${lightenColor(spineColor)}, rgba(240,235,225,0.9))`,
-            boxShadow: 'inset 4px 0 10px rgba(0,0,0,0.2), inset -2px 0 6px rgba(255,255,255,0.15)',
+            background:
+              'linear-gradient(to right, rgba(235,230,220,0.95), rgba(248,244,236,0.92))',
+            boxShadow:
+              'inset 3px 0 8px rgba(0,0,0,0.18), inset -2px 0 5px rgba(255,255,255,0.2)',
           }}
         />
-
       </div>
-
-      {/* フォーカスリング（アクティブ時のみ） */}
-      {isActive && (
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute',
-            inset: -3,
-            borderRadius: 2,
-            boxShadow: '0 0 0 2px rgba(99,102,241,0.8)',
-            pointerEvents: 'none',
-          }}
-        />
-      )}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** spine カラーを少し明るくして小口の紙色に近づける */
-function lightenColor(color: string): string {
-  // CSS 変数の場合はそのまま使い、rgba 合成で明るく見せる
-  return color;
-}
-
 function FallbackFace({
-  w, h, color, title, dimmed = false,
+  w,
+  h,
+  color,
+  title,
+  dimmed = false,
 }: {
-  w: number; h: number; color: string; title: string; dimmed?: boolean;
+  w: number;
+  h: number;
+  color: string;
+  title: string;
+  dimmed?: boolean;
 }) {
   return (
-    <div style={{
-      width: w, height: h,
-      backgroundColor: color,
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', gap: 8,
-      filter: dimmed ? 'saturate(0.45) brightness(0.58)' : undefined,
-    }}>
-      <BookOpen style={{ width: 32, height: 32, color: 'rgba(255,255,255,0.4)' }} />
+    <div
+      style={{
+        width: w,
+        height: h,
+        backgroundColor: color,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        filter: dimmed ? 'brightness(0.65) saturate(0.6)' : undefined,
+      }}
+    >
+      <BookOpen style={{ width: 28, height: 28, color: 'rgba(255,255,255,0.4)' }} />
       {!dimmed && title && (
-        <p style={{
-          color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: 600,
-          textAlign: 'center', padding: '0 12px',
-          display: '-webkit-box',
-          WebkitLineClamp: 4,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-        }}>
+        <p
+          style={{
+            color: 'rgba(255,255,255,0.85)',
+            fontSize: 10,
+            fontWeight: 600,
+            textAlign: 'center',
+            padding: '0 10px',
+            display: '-webkit-box',
+            WebkitLineClamp: 4,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
+        >
           {title}
         </p>
       )}
