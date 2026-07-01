@@ -327,7 +327,8 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
   if (books.length === 0) return null;
 
   const maxH = Math.max(...sizes.map((s) => s.height), 300);
-  const stageH = maxH + 48;
+  const maxScale = 1.06 * LAYOUT_SCALE;
+  const stageH = Math.ceil(maxH * maxScale) + 32;
   const dur = reduceMotion ? '0ms' : '360ms';
   const ease = 'cubic-bezier(0.22, 0.9, 0.28, 1)';
   const centerX = containerWidth / 2;
@@ -380,9 +381,11 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
         userSelect: 'none',
         touchAction: 'none',
         cursor: isDragging ? 'grabbing' : 'grab',
-        overflow: 'hidden',
+        overflowX: 'hidden',
+        overflowY: 'visible',
+        minHeight: stageH,
         perspective: PERSPECTIVE_PX,
-        perspectiveOrigin: '50% 40%',
+        perspectiveOrigin: '50% 50%',
       }}
     >
       <div
@@ -395,13 +398,14 @@ export function CoverFlowBookshelf({ books }: CoverFlowBookshelfProps) {
         {slotEntries.map(({ slot, bookIndex, book, slotOffset, x, z, rotateY, scale, opacity }) => {
           const sz = sizes[bookIndex] ?? { width: 180, height: 268 };
           const isCenter = Math.abs(slotOffset) < 0.5;
+          const visualH = sz.height * scale;
 
           return (
             <div
               key={book.id}
               style={{
                 position: 'absolute',
-                top: (stageH - sz.height) / 2,
+                top: (stageH - visualH) / 2,
                 left: centerX + x - sz.width / 2,
                 width: sz.width,
                 height: sz.height,
