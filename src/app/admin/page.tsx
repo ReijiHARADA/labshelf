@@ -15,7 +15,6 @@ import {
   Save,
   ExternalLink,
   FolderPlus,
-  Trash2,
   KeyRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -50,13 +49,6 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState('');
   const [categoryMessage, setCategoryMessage] = useState<{
-    success: boolean;
-    message: string;
-  } | null>(null);
-  const [resetPassword, setResetPassword] = useState('');
-  const [resetConfirmText, setResetConfirmText] = useState('');
-  const [isResetting, setIsResetting] = useState(false);
-  const [resetResult, setResetResult] = useState<{
     success: boolean;
     message: string;
   } | null>(null);
@@ -202,55 +194,6 @@ export default function AdminPage() {
       }
     } catch {
       setCategoryMessage({ success: false, message: 'カテゴリ追加に失敗しました' });
-    }
-  };
-
-  const canSubmitReset =
-    resetPassword === 'admin' && resetConfirmText === 'delete';
-
-  const handleResetBooks = async () => {
-    setResetResult(null);
-    if (!canSubmitReset) {
-      setResetResult({
-        success: false,
-        message: 'パスワードと確認キーワードを正しく入力してください',
-      });
-      return;
-    }
-
-    const ok = window.confirm(
-      '警告: データベース上の蔵書データを全件削除します。元に戻せません。続行しますか？'
-    );
-    if (!ok) return;
-
-    setIsResetting(true);
-    try {
-      const response = await fetch('/api/admin/books/reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          password: resetPassword,
-          confirmText: resetConfirmText,
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-      const success = Boolean(data?.success) && response.ok;
-      setResetResult({
-        success,
-        message: data?.message || (success ? '削除しました' : '削除に失敗しました'),
-      });
-      if (success) {
-        setResetPassword('');
-        setResetConfirmText('');
-        await loadBooks();
-      }
-    } catch (error) {
-      setResetResult({
-        success: false,
-        message: error instanceof Error ? error.message : '削除に失敗しました',
-      });
-    } finally {
-      setIsResetting(false);
     }
   };
 
@@ -751,61 +694,6 @@ export default function AdminPage() {
             </Card>
           </TabsContent>
         </Tabs>
-
-        <Card className="mt-10 border-zinc-700 bg-zinc-950 text-zinc-100">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-zinc-100">
-              <Trash2 className="h-5 w-5" />
-              危険操作: DB蔵書データ全削除
-            </CardTitle>
-            <CardDescription className="text-zinc-300">
-              この操作は元に戻せません。実行には管理者パスワードと確認キーワード
-              <code className="mx-1 rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-100">delete</code>
-              の両方が必要です。
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid gap-3 md:grid-cols-2">
-              <Input
-                type="password"
-                placeholder="管理者パスワード"
-                value={resetPassword}
-                onChange={(e) => setResetPassword(e.target.value)}
-                className="h-11 border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500"
-              />
-              <Input
-                placeholder="確認キーワード: delete"
-                value={resetConfirmText}
-                onChange={(e) => setResetConfirmText(e.target.value)}
-                className="h-11 border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                variant="destructive"
-                className="h-11"
-                onClick={handleResetBooks}
-                disabled={isResetting || !canSubmitReset}
-              >
-                {isResetting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="mr-2 h-4 w-4" />
-                )}
-                {isResetting ? '削除中...' : 'DBを全削除'}
-              </Button>
-            </div>
-            {resetResult && (
-              <p
-                className={`text-sm ${
-                  resetResult.success ? 'text-emerald-400' : 'text-red-400'
-                }`}
-              >
-                {resetResult.message}
-              </p>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
