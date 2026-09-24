@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { Sparkles, Clock, Grid3X3, Layers } from 'lucide-react';
-import { CoverFlowBookshelf } from '@/components/bookshelf/cover-flow-bookshelf';
-import { cn } from '@/lib/utils';
+import Link from 'next/link';
+import { ArrowRight, Clock } from 'lucide-react';
+import { BookCover } from '@/components/bookshelf';
+import { Button } from '@/components/ui/button';
 import type { Book } from '@/types/book';
+
+const VISIBLE_COUNT = 12;
 
 interface BookshelfSectionProps {
   allBooks: Book[];
@@ -13,91 +15,80 @@ interface BookshelfSectionProps {
   categories: string[];
 }
 
-type ViewMode = 'all' | 'recommended' | 'latest' | 'category';
+export function BookshelfSection({ latestBooks, allBooks }: BookshelfSectionProps) {
+  // 新着フラグが少ない場合は更新日の新しい本で補完
+  const source =
+    latestBooks.length > 0
+      ? latestBooks
+      : [...allBooks].sort(
+          (a, b) =>
+            new Date(b.updatedAt || b.createdAt || 0).getTime() -
+            new Date(a.updatedAt || a.createdAt || 0).getTime()
+        );
 
-const viewModes = [
-  { id: 'all' as const, label: 'すべて', icon: Grid3X3 },
-  { id: 'recommended' as const, label: 'おすすめ', icon: Sparkles },
-  { id: 'latest' as const, label: '新着', icon: Clock },
-  { id: 'category' as const, label: 'カテゴリ', icon: Layers },
-];
+  const books = source.slice(0, VISIBLE_COUNT);
 
-export function BookshelfSection({
-  allBooks,
-  recommendedBooks,
-  latestBooks,
-  categories,
-}: BookshelfSectionProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>(categories[0] || '');
-
-  const displayBooks = (() => {
-    switch (viewMode) {
-      case 'recommended':
-        return recommendedBooks;
-      case 'latest':
-        return latestBooks;
-      case 'category':
-        return allBooks.filter((book) => book.category === selectedCategory);
-      default:
-        return allBooks;
-    }
-  })();
+  if (books.length === 0) {
+    return (
+      <section className="pt-6 pb-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <p className="text-sm text-muted-foreground">表示できる本がありません</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <section className="pt-4 pb-8">
+    <section className="pt-6 pb-10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* フィルタータブ */}
-        <div className="mb-6">
-          <div className="flex flex-wrap items-center gap-2">
-            {viewModes.map((mode) => {
-              const Icon = mode.icon;
-              return (
-                <button
-                  key={mode.id}
-                  onClick={() => setViewMode(mode.id)}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all',
-                    viewMode === mode.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                  )}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {mode.label}
-                </button>
-              );
-            })}
-
-            {/* カテゴリサブフィルター */}
-            {viewMode === 'category' && (
-              <>
-                <div className="w-px h-5 bg-border mx-1" />
-                {categories.map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => setSelectedCategory(category)}
-                    className={cn(
-                      'px-3 py-1.5 rounded-full text-sm transition-all',
-                      selectedCategory === category
-                        ? 'bg-secondary text-secondary-foreground font-medium'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-                    )}
-                  >
-                    {category}
-                  </button>
-                ))}
-              </>
-            )}
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/5">
+              <Clock className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight sm:text-xl">
+                新着の本
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                最近追加・更新された蔵書
+              </p>
+            </div>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            className="shrink-0 text-muted-foreground hover:text-foreground"
+          >
+            <Link href="/browse?filter=latest">
+              すべて見る
+              <ArrowRight className="ml-1 h-4 w-4" />
+            </Link>
+          </Button>
         </div>
 
-        {/* 3Dカルーセル — 画面幅いっぱい、左右端で見切れ */}
-        <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2">
-          <CoverFlowBookshelf books={displayBooks} />
+        <div className="flex gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-4 sm:gap-5 sm:overflow-visible md:grid-cols-6 lg:grid-cols-6">
+          {books.map((book) => (
+            <Link
+              key={book.id}
+              href={`/books/${book.id}`}
+              className="group flex w-[112px] shrink-0 flex-col gap-2 sm:w-auto"
+            >
+              <div className="flex min-h-[168px] items-end justify-center transition-transform duration-200 group-hover:-translate-y-1">
+                <BookCover book={book} height={168} className="max-w-full" />
+              </div>
+              <div className="min-w-0">
+                <p className="line-clamp-2 text-xs font-medium leading-snug group-hover:text-primary">
+                  {book.title}
+                </p>
+                <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
+                  {book.author}
+                </p>
+              </div>
+            </Link>
+          ))}
         </div>
-
-        <p className="mt-4 text-xs text-muted-foreground">{displayBooks.length}冊</p>
       </div>
     </section>
   );
