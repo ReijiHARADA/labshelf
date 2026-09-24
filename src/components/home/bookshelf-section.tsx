@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { BookCover } from '@/components/bookshelf';
+import { publicationTimestamp } from '@/lib/publication-date';
 import type { Book } from '@/types/book';
 
 const COVER_HEIGHT = 420;
@@ -18,13 +19,22 @@ interface BookshelfSectionProps {
   categories: string[];
 }
 
-export function BookshelfSection({ latestBooks }: BookshelfSectionProps) {
+export function BookshelfSection({ allBooks }: BookshelfSectionProps) {
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const cooldownRef = useRef(false);
 
-  const source = latestBooks;
+  // ホームは出版年（新しい順）。スキャン日は使わない。
+  const source = useMemo(
+    () =>
+      [...allBooks].sort(
+        (a, b) =>
+          publicationTimestamp(b.publishedDate, b.publishedYear) -
+          publicationTimestamp(a.publishedDate, a.publishedYear)
+      ),
+    [allBooks]
+  );
 
   const items = useMemo(() => {
     if (source.length === 0) return [];
@@ -43,7 +53,6 @@ export function BookshelfSection({ latestBooks }: BookshelfSectionProps) {
     }, LOAD_COOLDOWN_MS);
   }, [source.length]);
 
-  // 画面幅を埋めるまで追加
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el || source.length === 0) return;
@@ -52,7 +61,6 @@ export function BookshelfSection({ latestBooks }: BookshelfSectionProps) {
     }
   }, [items.length, loadMore, source.length]);
 
-  // 右端付近で追加ロード（リストを循環）
   useEffect(() => {
     const root = scrollerRef.current;
     const sentinel = sentinelRef.current;
@@ -89,12 +97,12 @@ export function BookshelfSection({ latestBooks }: BookshelfSectionProps) {
   }
 
   return (
-    <section className="pt-4 pb-8 sm:pt-6 sm:pb-12">
+    <section className="pt-16">
       <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2">
         <div
           ref={scrollerRef}
           onScroll={handleScroll}
-          className="flex items-end gap-5 overflow-x-auto px-4 pb-3 pt-2 [scrollbar-width:thin] sm:gap-7 sm:px-8"
+          className="flex items-end gap-5 overflow-x-auto px-4 [scrollbar-width:thin] sm:gap-7 sm:px-8"
         >
           {items.map(({ book, key }) => (
             <Link

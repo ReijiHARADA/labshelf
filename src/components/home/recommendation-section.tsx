@@ -135,7 +135,7 @@ export function RecommendationSection({
   const statsBooks = allBooks.filter((book) => book.category === '数学・統計');
 
   return (
-    <section className="py-16">
+    <section className="pt-16 pb-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

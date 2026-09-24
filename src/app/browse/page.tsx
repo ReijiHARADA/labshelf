@@ -44,11 +44,11 @@ import { readInitialBrowseViewMode, markBrowseScrollForRestore, freezeBrowseScro
 type ViewMode = 'grid' | 'list' | 'shelf';
 
 const sortOptions: { value: SortOption; label: string }[] = [
-  { value: 'latest', label: '新着順' },
+  { value: 'year', label: '出版日順' },
+  { value: 'latest', label: 'スキャン日時順' },
   { value: 'title', label: 'タイトル順' },
   { value: 'author', label: '著者順' },
   { value: 'popular', label: '人気順' },
-  { value: 'year', label: '出版日順' },
 ];
 
 function sortBooks(books: Book[], sortBy: SortOption): Book[] {
@@ -205,112 +205,171 @@ export default function BrowsePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-bold">
-              {selectedCategory || '一覧'}
-            </h1>
-            {selectedCategory && (
-              <CategoryManageDialog
-                category={selectedCategory}
-                categoryColor={categoryColors[selectedCategory]}
-                onRenamed={(oldName, newName) => {
-                  queryClient.setQueryData<BrowseBooksData>(
-                    ['books', { limit: 1000 }],
-                    (prev) => {
-                      if (!prev) return prev;
-                      return {
-                        ...prev,
-                        books: prev.books.map((book) =>
-                          book.category === oldName
-                            ? { ...book, category: newName }
-                            : book
-                        ),
-                        categories: [
-                          ...new Set(
-                            prev.categories.map((c) => (c === oldName ? newName : c))
-                          ),
-                        ],
-                      };
-                    }
-                  );
-                  queryClient.setQueryData<Record<string, string>>(
-                    ['categories'],
-                    (prev) => {
-                      const next = { ...(prev ?? {}) };
-                      const oldColor = next[oldName];
-                      delete next[oldName];
-                      if (oldColor) next[newName] = oldColor;
-                      return next;
-                    }
-                  );
-                  setSelectedCategory(newName);
-                  const params = new URLSearchParams(searchParams.toString());
-                  params.set('category', newName);
-                  router.push(`/browse?${params.toString()}`);
-                }}
-                onDeleted={(name, fallbackCategory) => {
-                  queryClient.setQueryData<BrowseBooksData>(
-                    ['books', { limit: 1000 }],
-                    (prev) => {
-                      if (!prev) return prev;
-                      return {
-                        ...prev,
-                        books: prev.books.map((book) =>
-                          book.category === name
-                            ? { ...book, category: fallbackCategory }
-                            : book
-                        ),
-                        categories: [
-                          ...new Set(
-                            prev.categories
-                              .filter((c) => c !== name)
-                              .concat(fallbackCategory)
-                          ),
-                        ],
-                      };
-                    }
-                  );
-                  queryClient.setQueryData<Record<string, string>>(
-                    ['categories'],
-                    (prev) => {
-                      const next = { ...(prev ?? {}) };
-                      delete next[name];
-                      return next;
-                    }
-                  );
-                  setSelectedCategory(fallbackCategory);
-                  const params = new URLSearchParams(searchParams.toString());
-                  params.set('category', fallbackCategory);
-                  router.push(`/browse?${params.toString()}`);
-                }}
-              />
-            )}
-          </div>
-          <p className="mt-2 text-muted-foreground">
-            {loading ? '読み込み中...' : `${filteredBooks.length}冊の本が見つかりました`}
-          </p>
-        </div>
-
-        {/* Filters */}
+        {/* Header + filter / sort controls */}
         <div className="mb-6 space-y-4">
-          <div className="flex flex-wrap gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <SlidersHorizontal className="h-4 w-4 mr-2" />
-              フィルター
-              <ChevronDown
-                className={cn(
-                  'h-4 w-4 ml-2 transition-transform',
-                  showFilters && 'rotate-180'
-                )}
-              />
-            </Button>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h1 className="text-3xl font-bold">
+                {selectedCategory || '一覧'}
+              </h1>
+              {selectedCategory && (
+                <CategoryManageDialog
+                  category={selectedCategory}
+                  categoryColor={categoryColors[selectedCategory]}
+                  onRenamed={(oldName, newName) => {
+                    queryClient.setQueryData<BrowseBooksData>(
+                      ['books', { limit: 1000 }],
+                      (prev) => {
+                        if (!prev) return prev;
+                        return {
+                          ...prev,
+                          books: prev.books.map((book) =>
+                            book.category === oldName
+                              ? { ...book, category: newName }
+                              : book
+                          ),
+                          categories: [
+                            ...new Set(
+                              prev.categories.map((c) =>
+                                c === oldName ? newName : c
+                              )
+                            ),
+                          ],
+                        };
+                      }
+                    );
+                    queryClient.setQueryData<Record<string, string>>(
+                      ['categories'],
+                      (prev) => {
+                        const next = { ...(prev ?? {}) };
+                        const oldColor = next[oldName];
+                        delete next[oldName];
+                        if (oldColor) next[newName] = oldColor;
+                        return next;
+                      }
+                    );
+                    setSelectedCategory(newName);
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.set('category', newName);
+                    router.push(`/browse?${params.toString()}`);
+                  }}
+                  onDeleted={(name, fallbackCategory) => {
+                    queryClient.setQueryData<BrowseBooksData>(
+                      ['books', { limit: 1000 }],
+                      (prev) => {
+                        if (!prev) return prev;
+                        return {
+                          ...prev,
+                          books: prev.books.map((book) =>
+                            book.category === name
+                              ? { ...book, category: fallbackCategory }
+                              : book
+                          ),
+                          categories: [
+                            ...new Set(
+                              prev.categories
+                                .filter((c) => c !== name)
+                                .concat(fallbackCategory)
+                            ),
+                          ],
+                        };
+                      }
+                    );
+                    queryClient.setQueryData<Record<string, string>>(
+                      ['categories'],
+                      (prev) => {
+                        const next = { ...(prev ?? {}) };
+                        delete next[name];
+                        return next;
+                      }
+                    );
+                    setSelectedCategory(fallbackCategory);
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.set('category', fallbackCategory);
+                    router.push(`/browse?${params.toString()}`);
+                  }}
+                />
+              )}
+              <p className="text-muted-foreground">
+                {loading
+                  ? '読み込み中...'
+                  : `${filteredBooks.length}冊の本が見つかりました`}
+              </p>
+            </div>
+
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <SlidersHorizontal className="mr-2 h-4 w-4" />
+                フィルター
+                <ChevronDown
+                  className={cn(
+                    'ml-2 h-4 w-4 transition-transform',
+                    showFilters && 'rotate-180'
+                  )}
+                />
+              </Button>
+
+              <Select
+                items={sortOptions}
+                value={sortBy}
+                onValueChange={(v) => setSortBy(v as SortOption)}
+              >
+                <SelectTrigger className="h-9 w-[148px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {sortOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <div className="flex items-center gap-1 rounded-lg bg-muted/50 p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={cn(
+                    'rounded-md p-2 transition-colors',
+                    viewMode === 'grid'
+                      ? 'bg-background shadow-sm'
+                      : 'hover:bg-background/50'
+                  )}
+                  aria-label="グリッド表示"
+                >
+                  <Grid3X3 className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={cn(
+                    'rounded-md p-2 transition-colors',
+                    viewMode === 'list'
+                      ? 'bg-background shadow-sm'
+                      : 'hover:bg-background/50'
+                  )}
+                  aria-label="リスト表示"
+                >
+                  <List className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('shelf')}
+                  className={cn(
+                    'rounded-md p-2 transition-colors',
+                    viewMode === 'shelf'
+                      ? 'bg-background shadow-sm'
+                      : 'hover:bg-background/50'
+                  )}
+                  aria-label="本棚表示"
+                >
+                  <BookOpen className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Filter panel */}
@@ -447,67 +506,6 @@ export default function BrowsePage() {
               ))}
             </div>
           )}
-        </div>
-
-        {/* Toolbar */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <Select
-              items={sortOptions}
-              value={sortBy}
-              onValueChange={(v) => setSortBy(v as SortOption)}
-            >
-              <SelectTrigger className="w-[140px] h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {sortOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={cn(
-                'p-2 rounded-md transition-colors',
-                viewMode === 'grid'
-                  ? 'bg-background shadow-sm'
-                  : 'hover:bg-background/50'
-              )}
-              aria-label="グリッド表示"
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={cn(
-                'p-2 rounded-md transition-colors',
-                viewMode === 'list'
-                  ? 'bg-background shadow-sm'
-                  : 'hover:bg-background/50'
-              )}
-              aria-label="リスト表示"
-            >
-              <List className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('shelf')}
-              className={cn(
-                'p-2 rounded-md transition-colors',
-                viewMode === 'shelf'
-                  ? 'bg-background shadow-sm'
-                  : 'hover:bg-background/50'
-              )}
-              aria-label="本棚表示"
-            >
-              <BookOpen className="h-4 w-4" />
-            </button>
-          </div>
         </div>
 
         {/* Results */}
