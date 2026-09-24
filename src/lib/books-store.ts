@@ -257,7 +257,10 @@ export function getRecommendedBooks(): Book[] {
 }
 
 export function getLatestBooks(): Book[] {
-  return cachedBooks.filter((book) => book.latestFlag);
+  // スキャン／登録日（createdAt）が新しい順。発行日は使わない。
+  return [...cachedBooks].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 }
 
 export function getPopularBooks(limit = 10): Book[] {

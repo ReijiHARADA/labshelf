@@ -1,11 +1,14 @@
 'use client';
 
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { BookCover } from '@/components/bookshelf';
 import type { Book } from '@/types/book';
 
-const VISIBLE_COUNT = 10;
-const COVER_HEIGHT = 320;
+const COVER_HEIGHT = 420;
+const INITIAL_COUNT = 8;
+const BATCH_SIZE = 6;
+const LOAD_THRESHOLD_PX = 480;
 
 interface BookshelfSectionProps {
   allBooks: Book[];
@@ -14,29 +17,80 @@ interface BookshelfSectionProps {
   categories: string[];
 }
 
-export function BookshelfSection({ latestBooks, allBooks }: BookshelfSectionProps) {
-  const source =
-    latestBooks.length > 0
-      ? latestBooks
-      : [...allBooks].sort(
-          (a, b) =>
-            new Date(b.updatedAt || b.createdAt || 0).getTime() -
-            new Date(a.updatedAt || a.createdAt || 0).getTime()
-        );
+export function BookshelfSection({ latestBooks }: BookshelfSectionProps) {
+  const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadingRef = useRef(false);
 
-  const books = source.slice(0, VISIBLE_COUNT);
+  const source = latestBooks;
 
-  if (books.length === 0) {
+  const items = useMemo(() => {
+    if (source.length === 0) return [];
+    return Array.from({ length: visibleCount }, (_, index) => {
+      const book = source[index % source.length];
+      return { book, key: `${book.id}-${index}` };
+    });
+  }, [source, visibleCount]);
+
+  const loadMore = useCallback(() => {
+    if (loadingRef.current || source.length === 0) return;
+    loadingRef.current = true;
+    setVisibleCount((count) => count + BATCH_SIZE);
+    // 次フレームまで連打ロードを抑える
+    requestAnimationFrame(() => {
+      loadingRef.current = false;
+    });
+  }, [source.length]);
+
+  // 右端のセンチネルが見えたら追加ロード（循環）
+  useEffect(() => {
+    const root = scrollerRef.current;
+    const sentinel = sentinelRef.current;
+    if (!root || !sentinel || source.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          loadMore();
+        }
+      },
+      {
+        root,
+        rootMargin: `0px ${LOAD_THRESHOLD_PX}px 0px 0px`,
+        threshold: 0,
+      }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMore, source.length, items.length]);
+
+  // スクロールでもフォールバック検知
+  const handleScroll = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const remaining = el.scrollWidth - el.scrollLeft - el.clientWidth;
+    if (remaining < LOAD_THRESHOLD_PX) {
+      loadMore();
+    }
+  }, [loadMore]);
+
+  if (source.length === 0) {
     return null;
   }
 
   return (
     <section className="pt-4 pb-8 sm:pt-6 sm:pb-12">
       <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2">
-        <div className="flex items-end justify-start gap-5 overflow-x-auto px-4 pb-3 pt-2 [scrollbar-width:thin] sm:gap-6 sm:px-8 md:justify-center md:overflow-x-auto">
-          {books.map((book) => (
+        <div
+          ref={scrollerRef}
+          onScroll={handleScroll}
+          className="flex items-end gap-5 overflow-x-auto px-4 pb-3 pt-2 [scrollbar-width:thin] sm:gap-7 sm:px-8"
+        >
+          {items.map(({ book, key }) => (
             <Link
-              key={book.id}
+              key={key}
               href={`/books/${book.id}`}
               aria-label={book.title}
               className="group shrink-0 transition-transform duration-200 hover:-translate-y-1.5"
@@ -48,6 +102,11 @@ export function BookshelfSection({ latestBooks, allBooks }: BookshelfSectionProp
               />
             </Link>
           ))}
+          <div
+            ref={sentinelRef}
+            aria-hidden
+            className="h-px w-px shrink-0 self-center"
+          />
         </div>
       </div>
     </section>

@@ -104,7 +104,8 @@ export default function BrowsePage() {
   );
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<SortOption>(
-    (searchParams.get('sort') as SortOption) || 'year'
+    (searchParams.get('sort') as SortOption) ||
+      (searchParams.get('filter') === 'latest' ? 'latest' : 'year')
   );
   const [viewMode, setViewMode] = useState<ViewMode>(() => readInitialBrowseViewMode());
   const [showFilters, setShowFilters] = useState(false);
@@ -143,9 +144,8 @@ export default function BrowsePage() {
     const filter = searchParams.get('filter');
     if (filter === 'recommended') {
       books = books.filter((book) => book.recommended);
-    } else if (filter === 'latest') {
-      books = books.filter((book) => book.latestFlag);
     }
+    // filter=latest は latestFlag ではなく、後段の sortBy=latest（createdAt＝スキャン日）で並べる
 
     if (selectedCategory) {
       books = books.filter((book) => book.category === selectedCategory);
