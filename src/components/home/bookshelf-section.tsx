@@ -8,7 +8,8 @@ import type { Book } from '@/types/book';
 const COVER_HEIGHT = 420;
 const INITIAL_COUNT = 8;
 const BATCH_SIZE = 6;
-const LOAD_THRESHOLD_PX = 480;
+const LOAD_THRESHOLD_PX = 560;
+const LOAD_COOLDOWN_MS = 180;
 
 interface BookshelfSectionProps {
   allBooks: Book[];
@@ -21,7 +22,7 @@ export function BookshelfSection({ latestBooks }: BookshelfSectionProps) {
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const loadingRef = useRef(false);
+  const cooldownRef = useRef(false);
 
   const source = latestBooks;
 
@@ -34,16 +35,24 @@ export function BookshelfSection({ latestBooks }: BookshelfSectionProps) {
   }, [source, visibleCount]);
 
   const loadMore = useCallback(() => {
-    if (loadingRef.current || source.length === 0) return;
-    loadingRef.current = true;
+    if (cooldownRef.current || source.length === 0) return;
+    cooldownRef.current = true;
     setVisibleCount((count) => count + BATCH_SIZE);
-    // 次フレームまで連打ロードを抑える
-    requestAnimationFrame(() => {
-      loadingRef.current = false;
-    });
+    window.setTimeout(() => {
+      cooldownRef.current = false;
+    }, LOAD_COOLDOWN_MS);
   }, [source.length]);
 
-  // 右端のセンチネルが見えたら追加ロード（循環）
+  // 画面幅を埋めるまで追加
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || source.length === 0) return;
+    if (el.scrollWidth <= el.clientWidth + LOAD_THRESHOLD_PX) {
+      loadMore();
+    }
+  }, [items.length, loadMore, source.length]);
+
+  // 右端付近で追加ロード（リストを循環）
   useEffect(() => {
     const root = scrollerRef.current;
     const sentinel = sentinelRef.current;
@@ -66,7 +75,6 @@ export function BookshelfSection({ latestBooks }: BookshelfSectionProps) {
     return () => observer.disconnect();
   }, [loadMore, source.length, items.length]);
 
-  // スクロールでもフォールバック検知
   const handleScroll = useCallback(() => {
     const el = scrollerRef.current;
     if (!el) return;
